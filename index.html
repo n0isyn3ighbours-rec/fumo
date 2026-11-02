@@ -360,6 +360,12 @@ textarea{min-height:90px;resize:vertical}
 @media (max-width:980px){.front{grid-template-columns:minmax(0,1fr);gap:18px}.front-top{border-left:0;padding-left:0}.edition-preview .preview-grid{grid-template-columns:minmax(0,1fr);gap:6px}}
 @media (max-width:760px){.edition.porcelain{padding:16px;border-radius:12px}.desk-list{columns:1}.weights{grid-template-columns:minmax(0,1fr)}.masthead h1{font-size:44px}.splash .story-title{font-size:30px}}
 
+.insight{margin-top:18px;padding:14px 16px;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-2)}
+.insight p:not(.eyebrow):not(.hint){font-size:14px;line-height:1.6;color:var(--text-2)}
+.insight .listrow:last-child{padding-bottom:0}
+.radar{margin-bottom:26px;padding:14px 18px 6px;border:1px solid var(--warn);border-radius:12px;background:var(--surface-2)}
+.radar .section-label{border-bottom:0;padding-bottom:2px;color:var(--warn)}
+.radar .story-card.brief:first-of-type{border-top:0}
 /* Overlays */
 .modalback{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;padding:18px;background:var(--scrim);backdrop-filter:blur(6px)}
 .modalback.open{display:flex}
@@ -477,7 +483,7 @@ html::-webkit-scrollbar, .sidebar::-webkit-scrollbar { display: none; }
       </div>
     </header>
     <div id="page"></div>
-    <footer class="footer"><span>FUMO · V0.5</span><span>Private · Sync and backups in Settings</span></footer>
+    <footer class="footer"><span>FUMO · V0.6</span><span>Private · Sync and backups in Settings</span></footer>
   </main>
 </div>
 <div class="modalback" id="modalback">
@@ -594,6 +600,8 @@ const dayOr = (v, d = '') => isDay(v) ? v : d;
 const okId = v => typeof v === 'string' && /^[\w-]{1,80}$/.test(v) ? v : uid();
 const records = v => Array.isArray(v) ? v.filter(x => x && typeof x === 'object').slice(0, 5000) : [];
 const plainObject = v => v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+/* Comma- or line-separated topics: trimmed, 3–40 characters, no duplicates, at most 20. */
+const splitTerms = text => [...new Set(String(text || '').split(/[,\n]/).map(t => t.trim().replace(/\s+/g, ' ')).filter(t => t.length >= 3 && t.length <= 40))].slice(0, 20);
 
 function normalize(o) {
   if (!o || typeof o !== 'object' || o.version !== 1) throw Error('This is not a supported FUMO backup');
@@ -615,6 +623,7 @@ function normalize(o) {
       status: oneOf(p.status, STATUSES, 'Active'), priority: oneOf(p.priority, PRIORITIES, 'Medium'),
       next: str(p.next, 1000), blocker: blocker(p.blocker), due: dayOr(p.due), archived: !!p.archived,
       links: records(p.links).map(l => ({ label: str(l.label, 80), url: safeUrl(str(l.url, 800)) })).filter(l => l.url).slice(0, 12),
+      keywords: splitTerms((Array.isArray(p.keywords) ? p.keywords : []).map(k => str(k, 40)).join(',')).slice(0, 10),
       log: records(p.log).map(e => ({ id: okId(e.id), date: dayOr(e.date, today()), version: str(e.version, 40), note: str(e.note, 1000) })),
       checks: Object.fromEntries(Object.entries(plainObject(p.checks)).filter(([, v]) => v === true).map(([k]) => [str(k, 200), true]))
     })),
@@ -634,7 +643,7 @@ function normalize(o) {
       const p = plainObject(o.editionPrefs), w = plainObject(p.weights), feed = safeUrl(str(p.feedUrl, 500));
       const extra = Object.entries(w).filter(([k]) => !DESK_IDS.includes(k) && /^[\w-]{1,30}$/.test(k)).slice(0, 20).map(([k, v]) => [k, int(v, 2, 0, 3)]);
       const repo = /^github:[A-Za-z0-9-]{1,39}\/[\w.-]{1,100}$/.test(str(p.feedUrl, 160)) ? p.feedUrl : '';
-      return { feedUrl: repo || (feed.startsWith('https://') ? feed : ''), weights: Object.fromEntries([...DESK_IDS.map(id => [id, int(w[id], DEFAULT_WEIGHTS[id], 0, 3)]), ...extra]), images: p.images !== false, style: p.style === 'porcelain' ? 'porcelain' : 'obsidian', lastVisit: Number.isFinite(Date.parse(p.lastVisit)) ? new Date(p.lastVisit).toISOString() : '' };
+      return { feedUrl: repo || (feed.startsWith('https://') ? feed : ''), weights: Object.fromEntries([...DESK_IDS.map(id => [id, int(w[id], DEFAULT_WEIGHTS[id], 0, 3)]), ...extra]), images: p.images !== false, alerts: splitTerms((Array.isArray(p.alerts) ? p.alerts : []).map(k => str(k, 40)).join(',')), style: p.style === 'porcelain' ? 'porcelain' : 'obsidian', lastVisit: Number.isFinite(Date.parse(p.lastVisit)) ? new Date(p.lastVisit).toISOString() : '' };
     })(),
     editionRead: Object.fromEntries(Object.entries(plainObject(o.editionRead)).filter(([k, v]) => /^[\w-]{1,40}$/.test(k) && v && typeof v === 'object').slice(-400).map(([k, v]) => { const u = safeUrl(str(v.u, 1500)); return [k, { t: str(v.t, 220) || 'Untitled', u: /^https?:/.test(u) ? u : '', s: str(v.s, 80), d: str(v.d, 30), at: dayOr(v.at, today()) }]; })),
     sync: { repo: /^[A-Za-z0-9-]{1,39}\/[\w.-]{1,100}$/.test(str(o.sync?.repo, 160)) ? o.sync.repo : '' },
@@ -991,7 +1000,7 @@ function normalizeEdition(e) {
     generated: isoOr(e.generated) || new Date().toISOString(), refreshMinutes: int(e.refreshMinutes, 30, 5, 1440),
     desks: desks.length ? desks : DESKS_DEF,
     sources: records(e.sources).slice(0, 300).map(s => ({ name: str(s.name, 80), desk: str(s.desk, 30), ok: !!s.ok, items: int(s.items, 0, 0, 1e4), error: str(s.error, 160) })),
-    stories: records(e.stories).slice(0, 2000).map(s => ({ id: typeof s.id === 'string' && /^[\w-]{1,40}$/.test(s.id) ? s.id : '', desk: str(s.desk, 30), title: str(s.title, 220).trim(), url: safeHttp(str(s.url, 1500)), source: str(s.source, 80) || 'Source', published: isoOr(s.published) || isoOr(s.firstSeen), firstSeen: isoOr(s.firstSeen) || isoOr(s.published), summary: str(s.summary, 320).trim(), image: safeHttp(str(s.image, 1500)), weight: num(s.weight, 1, 0.1, 5) })).filter(s => s.id && s.title && s.url && s.published)
+    stories: records(e.stories).slice(0, 2000).map(s => ({ id: typeof s.id === 'string' && /^[\w-]{1,40}$/.test(s.id) ? s.id : '', desk: str(s.desk, 30), title: str(s.title, 220).trim(), url: safeHttp(str(s.url, 1500)), source: str(s.source, 80) || 'Source', published: isoOr(s.published) || isoOr(s.firstSeen), firstSeen: isoOr(s.firstSeen) || isoOr(s.published), summary: str(s.summary, 320).trim(), image: safeHttp(str(s.image, 1500)), weight: num(s.weight, 1, 0.1, 5), insight: s.insight && typeof s.insight === 'object' && str(s.insight.what, 260).trim().length >= 12 ? { what: str(s.insight.what, 260).trim(), why: str(s.insight.why, 320).trim(), model: str(s.insight.model, 40) } : null })).filter(s => s.id && s.title && s.url && s.published)
   };
 }
 function loadEditionCache() {
@@ -1120,8 +1129,8 @@ const clockOf = iso => new Date(iso).toLocaleTimeString(LOCALE, { hour: '2-digit
 const editionLabel = iso => { const h = new Date(iso).getHours(); return h < 12 ? 'Morning Edition' : h < 17 ? 'Midday Edition' : 'Evening Edition'; };
 const storyCount = n => `${n} ${n === 1 ? 'story' : 'stories'}`;
 function byline(s) {
-  const isNew = editionPrevVisit && s.firstSeen > editionPrevVisit && !state.editionRead[s.id];
-  return `<p class="byline"><span>${esc(s.source)}</span><span aria-hidden="true">·</span><time datetime="${esc(s.published)}">${timeAgo(s.published)}</time>${isNew ? '<span class="pill good">New</span>' : ''}${state.editionRead[s.id] ? '<span class="read-mark">Read</span>' : ''}</p>`;
+  const isNew = editionPrevVisit && s.firstSeen > editionPrevVisit && !state.editionRead[s.id], m = matchStory(s);
+  return `<p class="byline"><span>${esc(s.source)}</span><span aria-hidden="true">·</span><time datetime="${esc(s.published)}">${timeAgo(s.published)}</time>${isNew ? '<span class="pill good">New</span>' : ''}${m.alerts.length ? `<span class="pill warn">${esc(m.alerts[0])}</span>` : ''}${m.projects.length ? `<span class="pill">For ${esc(m.projects[0].p.title)}</span>` : ''}${state.editionRead[s.id] ? '<span class="read-mark">Read</span>' : ''}</p>`;
 }
 function storyCard(s, kind) {
   const big = kind === 'splash' || kind === 'deskLead';
@@ -1157,7 +1166,9 @@ function editionSetup() {
 function renderFront(ed) {
   const { hero, top, desks } = frontPage(ed);
   if (!hero) return '<div class="panel empty">No stories in your enabled desks right now. Turn desks back on in edition settings.</div>';
-  return `<section class="front" aria-label="Front page"><div class="front-lead">${storyCard(hero, 'splash')}</div><div class="front-top"><p class="section-label">Top stories</p>${top.map(s => storyCard(s, 'top')).join('')}</div></section>
+  /* Topic alerts surface even from desks you have switched off: you asked for them by name. */
+  const radar = state.editionPrefs.alerts.length ? ed.stories.filter(s => matchStory(s).alerts.length).sort((a, b) => Date.parse(b.published) - Date.parse(a.published)).slice(0, 5) : [];
+  return `${radar.length ? `<section class="radar" aria-label="Your topic alerts"><p class="section-label">On your radar</p>${radar.map(s => storyCard(s, 'brief')).join('')}</section>` : ''}<section class="front" aria-label="Front page"><div class="front-lead">${storyCard(hero, 'splash')}</div><div class="front-top"><p class="section-label">Top stories</p>${top.map(s => storyCard(s, 'top')).join('')}</div></section>
   <section class="desks-grid" aria-label="Across the desks">${desks.map(({ desk: d, stories }) => `<div class="desk-col"><h2 class="desk-name"><button type="button" class="text-button" data-action="editionView" data-id="${esc(d.id)}">${esc(d.name)}</button></h2>${stories.map((s, i) => storyCard(s, i === 0 ? 'thumb' : 'brief')).join('')}</div>`).join('')}</section>
   <p class="end-note">That’s the edition.${ed.sample ? '' : ` A fresh one is collected every ${ed.refreshMinutes} minutes.`}</p>`;
 }
@@ -1340,6 +1351,7 @@ function projectForm(p) {
     <div class="fields field2">${selectField('pstatus', 'Status', STATUSES, p?.status || 'Active')}${selectField('ppriority', 'Priority', PRIORITIES, p?.priority || 'Medium')}</div>
     ${field('pnext', 'Next action', p?.next || '', 'textarea', 'maxlength="1000"')}
     ${field('pblocker', 'Blockers / dependencies', p?.blocker || '', 'text', 'maxlength="700"')}
+    ${field('pkeywords', 'Topics to watch in The Daily Edition — comma-separated', (p?.keywords || []).join(', '), 'text', 'maxlength="400" placeholder="voice AI, concierge, agents"')}
     ${field('plinks', 'Links — one per line, optional label first', linkText, 'textarea', 'placeholder="Demo | https://…&#10;Folder | C:\\Users\\…\\outputs"')}
   </div><input type="hidden" id="pid" value="${esc(p?.id || '')}">${modalFooter('saveProject')}`);
 }
@@ -1420,6 +1432,34 @@ function doBreath() {
   update(); breathTimer = setInterval(update, 100);
 }
 
+
+/* ---------- Relevance: your topic alerts and project topics, matched against headlines on this device ---------- */
+const GENERIC_CLIENT = /^(own product|no client|example client)$/i;
+const termPatterns = new Map();
+function hasTerm(text, term) {
+  let re = termPatterns.get(term);
+  if (!re) { re = new RegExp(`(^|[^\\p{L}\\p{N}])${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}])`, 'iu'); termPatterns.set(term, re); }
+  return re.test(text);
+}
+const projectTerms = p => [...p.keywords, ...(p.client && !GENERIC_CLIENT.test(p.client) ? [p.client] : []), p.title].filter(t => t && t.length >= 3);
+function matchStory(s) {
+  const text = `${s.title} ${s.summary || ''}`;
+  return {
+    alerts: state.editionPrefs.alerts.filter(t => hasTerm(text, t)),
+    projects: openProjects().map(p => ({ p, term: projectTerms(p).find(t => hasTerm(text, t)) })).filter(x => x.term).slice(0, 3)
+  };
+}
+const MODEL_NAMES = { 'claude-haiku-5-5': 'Claude Haiku 5.5' };
+function insightPanel(s) {
+  if (!s.insight) return '';
+  return `<section class="insight" aria-label="AI analysis"><p class="eyebrow">Why it matters · AI analysis</p><p class="mt-s"><strong>What happened.</strong> ${esc(s.insight.what)}</p>${s.insight.why ? `<p class="mt-s"><strong>Why it matters.</strong> ${esc(s.insight.why)}</p>` : ''}<p class="hint mt-s">Written by ${esc(MODEL_NAMES[s.insight.model] || 'an AI model')} from the headline and ${esc(s.source)}’s summary only — it hasn’t read the article. Check the original before acting on it.</p></section>`;
+}
+function relevancePanel(s) {
+  const m = matchStory(s);
+  if (!m.projects.length) return '';
+  return `<section class="insight" aria-label="Relevant to your projects"><p class="eyebrow">Relevant to your projects</p>${m.projects.map(({ p, term }) => { const linked = p.links.some(l => l.url === s.url); return `<div class="listrow"><div class="flex1"><div class="itemname">${esc(p.title)}</div><div class="itemdetail">Mentions “${esc(term)}”</div></div>${s.url ? btn(linked ? 'Linked' : 'Save link to project', 'linkStoryToProject', { cls: 'small', id: s.id, item: p.id, ic: linked ? 'check' : 'link', attrs: linked ? 'disabled' : '' }) + btn('Note in inbox', 'noteStoryForProject', { cls: 'small quiet', id: s.id, item: p.id, ic: 'note' }) : ''}</div>`; }).join('')}</section>`;
+}
+
 /* ---------- The Daily Edition: article view and settings ---------- */
 function storyModal(s) {
   const saved = state.reading.some(r => r.storyId === s.id || r.url === s.url);
@@ -1427,7 +1467,7 @@ function storyModal(s) {
   showModal(deskName(s.desk), `<article class="article-view">${state.editionPrefs.images && s.image ? `<figure class="figure"><img src="${esc(s.image)}" alt="" decoding="async" referrerpolicy="no-referrer"><figcaption>Image: ${esc(s.source)}</figcaption></figure>` : ''}
   <h3 class="story-title article-title">${esc(s.title)}</h3><p class="byline"><span>${esc(s.source)}</span>${when ? `<span aria-hidden="true">·</span><time datetime="${esc(s.published)}">${when}</time>` : ''}</p>
   ${s.summary ? `<p class="eyebrow mt">From ${esc(s.source)}’s summary</p><p class="story-dek" style="margin-top:6px">${esc(s.summary)}</p>` : ''}
-  <p class="hint mt">FUMO shows the headline and the publisher’s own summary. ${s.url ? `The full story is on ${esc(s.source)}.` : 'This is an example story, so there is nothing to open.'}</p></article>
+  <p class="hint mt">FUMO shows the headline and the publisher’s own summary. ${s.url ? `The full story is on ${esc(s.source)}.` : 'This is an example story, so there is nothing to open.'}</p>${insightPanel(s)}${relevancePanel(s)}</article>
   <div class="modalactions"><div class="flex1">${btn('Mark unread', 'unreadStory', { cls: 'quiet small', id: s.id })}</div>${btn(saved ? 'Saved' : 'Save to library', 'saveStory', { id: s.id, ic: saved ? 'check' : 'plus', attrs: saved ? 'disabled' : '' })}${s.url ? `<a class="btn primary" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">Read at ${esc(s.source)} ${icon('arrow')}</a>` : ''}</div>`, { size: 'wide' });
 }
 function editionSettingsForm() {
@@ -1435,8 +1475,10 @@ function editionSettingsForm() {
   const hasBlock = state.blocks.some(b => /daily edition/i.test(b.title));
   showModal('Edition settings', `<div class="fields">
     ${field('edFeed', 'Headline service', editionRepo() || p.feedUrl, 'text', 'placeholder="your-name/fumo-edition" maxlength="500" autocomplete="off" spellcheck="false"')}
-    ${field('edKey', 'Read-only access key', '', 'password', `placeholder="${getEditionKey() ? 'Saved — leave empty to keep it' : 'github_pat_…'}" maxlength="300" autocomplete="off" spellcheck="false"`)}
-    <p class="hint">Your private repository as <code>name/repo</code>, plus a fine-grained key with <em>Contents: read-only</em> on that repo. The key stays in this browser and is never included in backups. A public <code>https://…/edition.json</code> address also works, without a key. Leave the service empty to disconnect.</p>
+    ${field('edKey', 'Access key', '', 'password', `placeholder="${getEditionKey() ? 'Saved — leave empty to keep it' : 'github_pat_…'}" maxlength="300" autocomplete="off" spellcheck="false"`)}
+    <p class="hint">Your private repository as <code>name/repo</code>, plus your fine-grained key (the same one sync uses). The key stays on this device and is never synced or included in backups. A public <code>https://…/edition.json</code> address also works, without a key. Leave the service empty to disconnect.</p>
+    ${field('edAlerts', 'Topic alerts — comma-separated', p.alerts.join(', '), 'text', 'maxlength="600" placeholder="Porsche, Grand Seiko, voice AI"')}
+    <p class="hint">Stories that mention these are pinned under “On your radar” at the top of the front page.</p>
     <fieldset class="fieldset"><legend>How much each desk leads your front page</legend><div class="weights">${desks.map(d => selectField('edw-' + d.id, esc(d.name), WEIGHT_LABELS.map((l, i) => [String(i), l]), String(deskWeight(d.id)))).join('')}</div></fieldset>
     <div class="fields field2">${selectField('edStyle', 'Reading style', [['obsidian', 'Obsidian — matches FUMO'], ['porcelain', 'Porcelain — paper']], p.style)}${selectField('edImages', 'Photos', [['on', 'Show publisher photos'], ['off', 'Text only']], p.images ? 'on' : 'off')}</div>
     <div class="row between wrap"><span class="hint">${hasBlock ? 'Reading time is in your morning routine.' : 'Make it a ritual: 15 minutes with the edition before deep work.'}</span>${hasBlock ? '' : btn('Add to my morning', 'addReadingBlock', { cls: 'small', ic: 'plus' })}</div>
@@ -1511,7 +1553,7 @@ function doAction(a, key, el) {
       if (!title) return toast('Give the project a name');
       const { out, bad } = parseLinks($('#plinks').value);
       if (bad.length) return toast(`Couldn’t read this link: ${bad[0].slice(0, 60)}`);
-      const data = { title: title.slice(0, 150), client: val('#pclient').slice(0, 80), due: dayOr(val('#pdue')), status: oneOf(val('#pstatus'), STATUSES, 'Active'), priority: oneOf(val('#ppriority'), PRIORITIES, 'Medium'), next: val('#pnext').slice(0, 1000), blocker: val('#pblocker').slice(0, 700), links: out };
+      const data = { title: title.slice(0, 150), client: val('#pclient').slice(0, 80), due: dayOr(val('#pdue')), status: oneOf(val('#pstatus'), STATUSES, 'Active'), priority: oneOf(val('#ppriority'), PRIORITIES, 'Medium'), next: val('#pnext').slice(0, 1000), blocker: val('#pblocker').slice(0, 700), links: out, keywords: splitTerms(val('#pkeywords')).slice(0, 10) };
       const p = projectById(val('#pid'));
       if (p) Object.assign(p, data); else state.projects.push({ id: uid(), ...data, log: [], checks: {}, archived: false });
       save(); closeModal(); render(); toast(p ? 'Project updated' : 'Project added'); break;
@@ -1596,6 +1638,19 @@ function doAction(a, key, el) {
       if (!state.reading.some(r => r.storyId === x.id || r.url === x.url)) state.reading.push({ id: uid(), url: x.url, title: x.title, desk: DESK_IDS.includes(x.desk) ? x.desk : 'work', added: today(), read: true, source: x.source, published: x.published, summary: x.summary, storyId: x.id });
       save(); render(); storyModal(x); toast('Saved to your library'); break;
     }
+    case 'linkStoryToProject': {
+      const st = findStory(key), p = projectById(el?.dataset.item);
+      if (!st || !p || !st.url) break;
+      if (p.links.length >= 12) return toast(`${p.title} already has 12 links — remove one first`);
+      if (!p.links.some(l => l.url === st.url)) p.links.push({ label: st.title.slice(0, 80), url: st.url });
+      save(); render(); storyModal(st); toast(`Saved to ${p.title}’s links`); break;
+    }
+    case 'noteStoryForProject': {
+      const st = findStory(key), p = projectById(el?.dataset.item);
+      if (!st || !p || !st.url) break;
+      state.inbox.push({ id: uid(), text: `${st.title} — ${st.url}`.slice(0, 2000), created: new Date().toISOString(), projectId: p.id });
+      save(); render(); toast(`Noted in your inbox for ${p.title}`); break;
+    }
     case 'editionSettings': editionSettingsForm(); break;
     case 'editionSources': sourcesModal(); break;
     case 'saveEditionSettings': {
@@ -1607,9 +1662,11 @@ function doAction(a, key, el) {
       allDesks().forEach(d => { if ($('#edw-' + d.id)) p.weights[d.id] = int(val('#edw-' + d.id), deskWeight(d.id), 0, 3); });
       p.style = val('#edStyle') === 'porcelain' ? 'porcelain' : 'obsidian';
       p.images = val('#edImages') !== 'off';
+      p.alerts = splitTerms(val('#edAlerts'));
       p.feedUrl = url;
       if (key) setEditionKey(key);
-      if (!url) setEditionKey('');
+      /* The key is shared with sync: only forget it when neither needs it. */
+      if (!url && !state.sync.repo) setEditionKey('');
       if (changed) { editionCache = null; editionPreview = false; try { localStorage.removeItem(EDITION_KEY); } catch (e) {} }
       save(); closeModal(); render();
       if ((changed || key) && url) { editionLastTry = 0; toast('Connecting to your headline service…'); refreshEdition(true); }
