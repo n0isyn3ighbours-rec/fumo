@@ -1505,7 +1505,7 @@ function editionSettingsForm() {
     <p class="hint">Your private repository as <code>name/repo</code>, plus your fine-grained key (the same one sync uses). The key stays on this device and is never synced or included in backups. A public <code>https://…/edition.json</code> address also works, without a key. Leave the service empty to disconnect.</p>
     ${field('edAlerts', 'Topic alerts — comma-separated', p.alerts.join(', '), 'text', 'maxlength="600" placeholder="Porsche, Grand Seiko, voice AI"')}
     <p class="hint">Stories that mention these are pinned under “On your radar” at the top of the front page.</p>
-    ${Number(local.get(DISPATCH_DENIED)) ? '<p class="hint">To get a fresh edition whenever you open it, give your key <em>Actions: Read and write</em> on the headline repository.</p>' : ''}
+    ${Number(local.get(DISPATCH_DENIED)) ? '<p class="hint">To get a fresh edition whenever you open it, give your key <em>Actions: Read and write</em> on the headline repository, then press Save.</p>' : ''}
     <fieldset class="fieldset"><legend>How much each desk leads your front page</legend><div class="weights">${desks.map(d => selectField('edw-' + d.id, esc(d.name), WEIGHT_LABELS.map((l, i) => [String(i), l]), String(deskWeight(d.id)))).join('')}</div></fieldset>
     <div class="fields field2">${selectField('edStyle', 'Reading style', [['obsidian', 'Obsidian — matches FUMO'], ['porcelain', 'Porcelain — paper']], p.style)}${selectField('edImages', 'Photos', [['on', 'Show publisher photos'], ['off', 'Text only']], p.images ? 'on' : 'off')}</div>
     <div class="row between wrap"><span class="hint">${hasBlock ? 'Reading time is in your morning routine.' : 'Make it a ritual: 15 minutes with the edition before deep work.'}</span>${hasBlock ? '' : btn('Add to my morning', 'addReadingBlock', { cls: 'small', ic: 'plus' })}</div>
@@ -1690,7 +1690,7 @@ function doAction(a, key, el) {
       p.style = val('#edStyle') === 'porcelain' ? 'porcelain' : 'obsidian';
       p.images = val('#edImages') !== 'off';
       p.alerts = splitTerms(val('#edAlerts'));
-      if (key) local.set(DISPATCH_DENIED, null);
+      local.set(DISPATCH_DENIED, null); // saving retries on-demand editions, e.g. after adding Actions access to the key
       p.feedUrl = url;
       if (key) setEditionKey(key);
       /* The key is shared with sync: only forget it when neither needs it. */
