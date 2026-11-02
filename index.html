@@ -1007,7 +1007,7 @@ function loadEditionCache() {
   try { const c = JSON.parse(localStorage.getItem(EDITION_KEY) || 'null'); if (c && c.data) return { fetchedAt: num(c.fetchedAt, 0, 0, 1e15), data: normalizeEdition(c.data), error: '' }; } catch (e) {}
   return null;
 }
-let editionCache = loadEditionCache(), editionLoading = false, editionLastTry = 0, editionPreview = false, SAMPLE = null;
+let editionCache = loadEditionCache(), editionLoading = false, editionLastTry = 0, editionPreview = false, SAMPLE = null, editionCollecting = 0;
 let editionView = 'front', editionPrevVisit = '', libraryQuery = '';
 
 function sampleEdition() {
@@ -1062,18 +1062,44 @@ async function refreshEdition(force) {
   if (page === 'edition' && !modal) render();
   try {
     const req = editionRequest();
-    if (req.repo && !getEditionKey()) throw Error('Add your read-only access key in edition settings.');
+    if (req.repo && !getEditionKey()) throw Error('Add your access key in edition settings.');
     const res = await fetch(req.url, { cache: 'no-store', headers: req.headers });
     if (!res.ok) throw Error(editionHttpError(res.status, req.repo));
     const data = normalizeEdition(await res.json());
     editionCache = { fetchedAt: Date.now(), data, error: '' };
     try { localStorage.setItem(EDITION_KEY, JSON.stringify({ fetchedAt: editionCache.fetchedAt, data })); } catch (e) {}
+    if (editionCollecting && Date.parse(data.generated) > editionCollecting - 6e4) editionCollecting = 0;
+    requestFreshEdition(data, force);
   } catch (e) {
     const msg = /fetch|network|load failed/i.test(e.message) ? 'Couldn’t reach your headline service. You may be offline, or the address may be wrong.' : e.message;
     editionCache = { fetchedAt: editionCache?.fetchedAt || 0, data: editionCache?.data || null, error: msg };
   }
   editionLoading = false;
   if (!modal && (page === 'edition' || page === 'command')) render();
+}
+
+
+/* GitHub's 30-minute schedule is unreliable on quiet repositories, so FUMO asks for a fresh edition when you
+   actually read and the current one is getting old. Needs the key to have Actions: Read and write. */
+const DISPATCH_AT = 'fumo.edition.dispatched', DISPATCH_DENIED = 'fumo.edition.dispatchDenied';
+async function requestFreshEdition(data, force) {
+  const repo = editionRepo(), age = Date.now() - Date.parse(data.generated);
+  if (!repo || age < (force ? 10 : 40) * 6e4 || editionCollecting) return;
+  const last = Number(local.get(DISPATCH_AT)) || 0, denied = Number(local.get(DISPATCH_DENIED)) || 0;
+  if (Date.now() - last < 12 * 6e4 || Date.now() - denied < 864e5) return;
+  local.set(DISPATCH_AT, String(Date.now()));
+  try {
+    const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/edition.yml/dispatches`, {
+      method: 'POST', body: JSON.stringify({ ref: 'main' }),
+      headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', Authorization: `Bearer ${getEditionKey()}`, 'Content-Type': 'application/json' }
+    });
+    if (res.status === 403 || res.status === 404) { local.set(DISPATCH_DENIED, String(Date.now())); return; }
+    if (!res.ok) return;
+    editionCollecting = Date.now();
+    if (page === 'edition' && !modal) render();
+    /* A run takes about a minute and a half; look for the new edition, then stop looking after five minutes. */
+    for (const wait of [100, 150, 220, 300]) setTimeout(() => { if (editionCollecting && Date.now() - editionCollecting < 5.5 * 6e4) refreshEdition(true); else if (editionCollecting) { editionCollecting = 0; if (page === 'edition' && !modal) render(); } }, wait * 1000);
+  } catch (e) { /* offline: the next read tries again */ }
 }
 
 /* ---------- Ranking ---------- */
@@ -1143,7 +1169,7 @@ function dateline(ed) {
   if (!ed) return `<p class="dateline"><span>${date}</span></p>`;
   if (ed.sample) return `<p class="dateline"><span>${date}</span><span>Example edition</span></p>`;
   const ok = ed.sources.filter(s => s.ok).length, total = ed.sources.length;
-  return `<p class="dateline"><span>${date}</span><span>${editionLabel(ed.generated)}</span><span>${editionLoading ? 'Refreshing…' : `Refreshed ${clockOf(ed.generated)}`}</span><span>${storyCount(ed.stories.length)}</span>${total ? `<button type="button" data-action="editionSources" class="${ok < total ? 'warn' : ''}">${ok} of ${total} sources</button>` : ''}</p>`;
+  return `<p class="dateline"><span>${date}</span><span>${editionLabel(ed.generated)}</span><span>${editionCollecting ? 'Collecting a fresh edition…' : editionLoading ? 'Refreshing…' : `Refreshed ${clockOf(ed.generated)}`}</span><span>${storyCount(ed.stories.length)}</span>${total ? `<button type="button" data-action="editionSources" class="${ok < total ? 'warn' : ''}">${ok} of ${total} sources</button>` : ''}</p>`;
 }
 function deskbar(ed) {
   const items = [['front', 'Front page'], ...deskList(ed).map(d => [d.id, d.name]), ['library', 'Library']];
@@ -1479,6 +1505,7 @@ function editionSettingsForm() {
     <p class="hint">Your private repository as <code>name/repo</code>, plus your fine-grained key (the same one sync uses). The key stays on this device and is never synced or included in backups. A public <code>https://…/edition.json</code> address also works, without a key. Leave the service empty to disconnect.</p>
     ${field('edAlerts', 'Topic alerts — comma-separated', p.alerts.join(', '), 'text', 'maxlength="600" placeholder="Porsche, Grand Seiko, voice AI"')}
     <p class="hint">Stories that mention these are pinned under “On your radar” at the top of the front page.</p>
+    ${Number(local.get(DISPATCH_DENIED)) ? '<p class="hint">To get a fresh edition whenever you open it, give your key <em>Actions: Read and write</em> on the headline repository.</p>' : ''}
     <fieldset class="fieldset"><legend>How much each desk leads your front page</legend><div class="weights">${desks.map(d => selectField('edw-' + d.id, esc(d.name), WEIGHT_LABELS.map((l, i) => [String(i), l]), String(deskWeight(d.id)))).join('')}</div></fieldset>
     <div class="fields field2">${selectField('edStyle', 'Reading style', [['obsidian', 'Obsidian — matches FUMO'], ['porcelain', 'Porcelain — paper']], p.style)}${selectField('edImages', 'Photos', [['on', 'Show publisher photos'], ['off', 'Text only']], p.images ? 'on' : 'off')}</div>
     <div class="row between wrap"><span class="hint">${hasBlock ? 'Reading time is in your morning routine.' : 'Make it a ritual: 15 minutes with the edition before deep work.'}</span>${hasBlock ? '' : btn('Add to my morning', 'addReadingBlock', { cls: 'small', ic: 'plus' })}</div>
@@ -1663,6 +1690,7 @@ function doAction(a, key, el) {
       p.style = val('#edStyle') === 'porcelain' ? 'porcelain' : 'obsidian';
       p.images = val('#edImages') !== 'off';
       p.alerts = splitTerms(val('#edAlerts'));
+      if (key) local.set(DISPATCH_DENIED, null);
       p.feedUrl = url;
       if (key) setEditionKey(key);
       /* The key is shared with sync: only forget it when neither needs it. */
