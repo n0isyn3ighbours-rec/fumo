@@ -1,0 +1,1959 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#060708">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FUMO">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="color-scheme" content="dark light">
+<meta name="description" content="FUMO — a personal command centre for running an agency: clients, focus, follow-ups and recovery. Your data stays in this browser.">
+<title>FUMO · Command Centre</title>
+<script>try{var t=localStorage.getItem('fumo.ui.theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.dataset.theme=t}catch(e){document.documentElement.dataset.theme='dark'}</script>
+<style>
+/* FUMO V0.3 — one stylesheet, built on tokens. Themes only swap tokens. */
+:root{
+  color-scheme:dark;
+  --bg:#060708;--frame:#0b0d0e;--side:linear-gradient(150deg,#111416,#0a0c0d 70%);--side-end:#0a0c0d;
+  --surface:#101315;--surface-2:#161a1c;--surface-3:#1c2124;--hover:#20262a;
+  --border:#262c2f;--border-strong:#363e42;
+  --text:#f2f4f4;--text-2:#cdd3d5;--muted:#a2aaad;--faint:#858d91;--kicker:#bcc5c9;
+  --accent:#e4e9ea;--on-accent:#101416;--focus:#b9cdc8;
+  --btn:#1b2023;--btn-hover:#272e32;--input:#121618;
+  --track:#252c2f;--fill:#dfe5e7;--spark:#7f898d;
+  --good:#9cc8b4;--good-bg:#17291f;--warn:#e0bb8f;--warn-bg:#2b2319;--bad:#eda3a3;--bad-bg:#2d1b1c;
+  --paper:#e8e7e3;--paper-ink:#171a1c;--paper-muted:#555c5f;--paper-line:#cfcdc6;
+  --shadow:0 18px 50px #0007;--scrim:#020405cc;
+  --dot-a:#7c9e98;--dot-b:#ab8798;--dot-c:#bb9d78;
+}
+:root[data-theme=light]{
+  color-scheme:light;
+  --bg:#e4e5e1;--frame:#f3f3f0;--side:linear-gradient(150deg,#f1f2ef,#e6e8e6);--side-end:#e6e8e6;
+  --surface:#fbfbf9;--surface-2:#ffffff;--surface-3:#eef0ee;--hover:#e5e8e7;
+  --border:#d8dddd;--border-strong:#c1cacd;
+  --text:#141c21;--text-2:#2c383f;--muted:#53616a;--faint:#5a6870;--kicker:#46565f;
+  --accent:#18232a;--on-accent:#f7f8f8;--focus:#2f5f6e;
+  --btn:#f0f2f1;--btn-hover:#e3e8e8;--input:#ffffff;
+  --track:#dde3e4;--fill:#2d4552;--spark:#7d8c93;
+  --good:#2e6a53;--good-bg:#dff0e7;--warn:#87561f;--warn-bg:#f4e7d4;--bad:#a13a3a;--bad-bg:#f7dfdf;
+  --paper:#1a2125;--paper-ink:#f1f1ee;--paper-muted:#aab3b7;--paper-line:#3a4448;
+  --shadow:0 18px 50px #1a283026;--scrim:#1b262c99;
+  --dot-a:#4f7f78;--dot-b:#94677d;--dot-c:#9c7b4f;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:-.1px;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:disabled{opacity:.45;cursor:not-allowed}
+a{color:inherit}
+h1,h2,h3,p{margin:0}
+h1{font-size:clamp(26px,2.4vw,36px);font-weight:550;letter-spacing:-1px;line-height:1.2}
+h1:focus{outline:none}
+h2{font-size:17px;font-weight:550;letter-spacing:-.35px}
+h3{font-size:14px;font-weight:600}
+:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.icon{width:17px;height:17px;stroke:currentColor;stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.muted{color:var(--muted)}.faint{color:var(--faint)}.hint{font-size:12px;color:var(--faint)}
+.row{display:flex;align-items:center;gap:10px}.between{justify-content:space-between}.wrap{flex-wrap:wrap}.flex1{flex:1;min-width:0}
+.stack{display:grid;gap:16px;align-content:start}
+.mt{margin-top:16px}.mt-s{margin-top:10px}.mb{margin-bottom:16px}
+
+/* Shell */
+.app{--sidew:220px;display:grid;grid-template-columns:var(--sidew) minmax(0,1fr);width:calc(100% - 32px);max-width:1800px;min-height:calc(100vh - 32px);margin:16px auto;border:1px solid var(--border);border-radius:18px;background:linear-gradient(90deg,var(--side-end) var(--sidew),var(--frame) var(--sidew));overflow:clip}
+.app.collapsed{--sidew:72px}
+.sidebar{position:sticky;top:16px;height:calc(100vh - 34px);display:flex;flex-direction:column;padding:24px 14px 16px;background:var(--side);overflow-y:auto;overflow-x:hidden}
+.brandrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 4px 28px 8px}
+.logotype{font:650 26px/1 ui-sans-serif,system-ui,sans-serif;letter-spacing:-1.4px}
+.nav{display:grid;gap:3px}
+.nav button,.quick button{display:flex;align-items:center;gap:11px;width:100%;min-height:38px;padding:0 12px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);font-size:13px;text-align:left;white-space:nowrap}
+.nav button:hover,.quick button:hover{background:var(--hover);color:var(--text)}
+.nav button[aria-current=page]{background:var(--surface-3);border-color:var(--border-strong);color:var(--text)}
+.nav .count{margin-left:auto;min-width:20px;text-align:right;font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.quick{margin-top:26px;display:grid;gap:2px}
+.quick-label{font-size:11px;text-transform:uppercase;letter-spacing:1.1px;color:var(--faint);padding:0 12px 8px}
+.sidefoot{margin-top:auto;padding:16px 4px 0;display:flex;align-items:center;gap:10px;border-top:1px solid var(--border)}
+.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;flex:none;font-size:12px;font-weight:600;color:var(--on-accent);background:var(--accent)}
+.profile-label{flex:1;min-width:0;line-height:1.35}
+.profile-label strong{display:block;font-size:13px;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-label span{font-size:11px;color:var(--faint)}
+.app.collapsed .sidebar{padding-inline:11px}
+.app.collapsed .brandrow{justify-content:center;margin-inline:0}
+.app.collapsed :is(.logo,.label,.quick-label,.profile-label,.sidefoot .icon-button,.nav .count){display:none}
+.app.collapsed :is(.nav button,.quick button){justify-content:center;padding:0}
+.app.collapsed .sidefoot{justify-content:center}
+.icon-button{display:inline-grid;place-items:center;width:36px;height:36px;flex:none;border:1px solid transparent;border-radius:50%;background:transparent;color:var(--muted)}
+.icon-button:hover{background:var(--hover);color:var(--text)}
+.backdrop{display:none}
+.main{min-width:0;padding:26px 30px 30px;border-left:1px solid var(--border)}
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:30px;min-height:38px}
+.mobile-menu{display:none}
+.search-trigger{display:flex;align-items:center;gap:10px;width:300px;max-width:42vw;height:38px;padding:0 14px;border:1px solid var(--border-strong);border-radius:24px;background:var(--surface);color:var(--faint);font-size:13px;text-align:left}
+.search-trigger:hover{color:var(--text)}
+.search-trigger .icon{width:15px;height:15px}
+.search-trigger kbd{margin-left:auto;font:11px system-ui;color:var(--faint);border:1px solid var(--border-strong);padding:1px 5px;border-radius:4px}
+.topright{margin-left:auto;display:flex;align-items:center;gap:6px}
+.clock{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums;margin-right:6px;white-space:nowrap}
+.timer-chip{display:none;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:30px;border:1px solid var(--border-strong);background:var(--surface-3);font-size:12px;font-variant-numeric:tabular-nums;color:var(--text)}
+.timer-chip.on{display:inline-flex}
+.timer-chip i{width:7px;height:7px;border-radius:50%;background:var(--good)}
+.footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:34px;padding-top:18px;border-top:1px solid var(--border);font-size:11px;color:var(--faint)}
+
+/* Building blocks */
+.panel{min-width:0;padding:22px;border:1px solid var(--border);border-radius:16px;background:var(--surface)}
+.panelhead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
+.sub{font-size:12px;color:var(--faint);margin-top:2px}
+.kicker{font-size:11px;font-weight:650;letter-spacing:2px;text-transform:uppercase;color:var(--kicker);margin-bottom:10px}
+.pagehead{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:24px}
+.pagehead h1{font-size:clamp(26px,2.4vw,32px)}
+.lead{color:var(--muted);font-size:14px;margin-top:8px;max-width:640px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.grid{display:grid;gap:16px}
+.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cols3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.span2{grid-column:1/-1}
+.btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 13px;border:1px solid var(--border-strong);border-radius:9px;background:var(--btn);color:var(--text);font-size:13px;white-space:nowrap}
+.btn:hover{background:var(--btn-hover)}
+.btn .icon{width:15px;height:15px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:550}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn.quiet{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.quiet:hover{background:var(--hover);color:var(--text)}
+.btn.small{min-height:30px;padding:4px 10px;font-size:12px}
+.btn.danger{color:var(--bad)}
+.text-button{border:0;background:transparent;color:var(--muted);font-size:12px;padding:4px 0}
+.text-button:hover{color:var(--text);text-decoration:underline}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border:0;border-radius:99px;background:var(--surface-3);color:var(--text-2);font-size:11px;white-space:nowrap;line-height:1.6}
+button.pill:hover{color:var(--text)}
+.pill.good{background:var(--good-bg);color:var(--good)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.progress{height:6px;border-radius:9px;background:var(--track);overflow:hidden}
+.progress>div{height:100%;border-radius:9px;background:var(--fill);transition:width .3s}
+.listrow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.listrow:last-child{border-bottom:0}
+.listrow.done .itemname{text-decoration:line-through;color:var(--faint)}
+.itemname{font-size:13px;font-weight:550;overflow-wrap:anywhere}
+.itemname.plain{font-weight:450}
+a.itemname{text-decoration:none}
+a.itemname:hover{text-decoration:underline}
+.itemdetail{font-size:12px;color:var(--faint);overflow-wrap:anywhere}
+.check{width:17px;height:17px;flex:none;accent-color:var(--fill);cursor:pointer}
+.empty{padding:24px 12px;text-align:center;color:var(--faint);font-size:13px}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--faint)}
+.micro{font-size:12px;color:var(--muted)}
+.divider{border:0;border-top:1px solid var(--border);margin:16px 0}
+.field{display:grid;gap:6px}
+.field label{font-size:12px;color:var(--muted)}
+.fields{display:grid;gap:13px}
+.field2{grid-template-columns:1fr 1fr}
+.input,select,textarea{width:100%;min-height:40px;padding:9px 12px;border:1px solid var(--border-strong);border-radius:9px;background:var(--input);color:var(--text);outline:none}
+textarea{min-height:90px;resize:vertical}
+.input::placeholder,textarea::placeholder{color:var(--faint)}
+.input:focus,select:focus,textarea:focus{border-color:var(--focus)}
+.choice{display:flex;gap:10px;align-items:flex-start;font-size:13px;cursor:pointer}
+.choice input{margin-top:2px}
+.capture{display:flex;gap:8px}
+.capture .input{flex:1;min-width:0}
+.alert{display:flex;align-items:center;gap:12px;margin-bottom:18px;padding:11px 14px;border:1px solid var(--warn);border-radius:12px;background:var(--warn-bg);color:var(--warn);font-size:13px}
+.alert .btn{margin-left:auto}
+
+/* Command Centre */
+.hero{display:flex;justify-content:space-between;align-items:center;gap:24px;margin:0 2px 26px}
+.hero-date{font-size:13px;color:var(--muted);margin-bottom:8px}
+.hero .lead{font-size:15px;color:var(--text-2)}
+.hero-quote{font:14px/1.6 Georgia,serif;color:var(--text-2);text-align:right;max-width:230px;margin:0}
+.hero-quote p{font:11px system-ui;letter-spacing:1px;color:var(--faint);margin-top:6px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:20px}
+.metric{position:relative;display:flex;flex-direction:column;justify-content:center;min-width:0;height:128px;padding:18px 20px;border:1px solid var(--border-strong);border-radius:15px;background:var(--surface);color:var(--text);text-align:left;overflow:hidden}
+.metric:hover{border-color:var(--muted)}
+.statlabel{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-2)}
+.metric-number{font-size:31px;font-weight:550;letter-spacing:-1.2px;line-height:1.1;margin:8px 0 3px}
+.metric-number small{font-size:14px;letter-spacing:0;margin-left:2px;color:var(--muted)}
+.metric-foot{font-size:12px;color:var(--muted);max-width:62%;line-height:1.4}
+.spark{position:absolute;right:18px;bottom:22px;display:flex;align-items:flex-end;gap:4px;width:66px;height:58px}
+.spark.static{position:static;width:70px;height:34px;flex:none}
+.spark i{flex:1;min-height:4px;border-radius:3px;background:var(--spark)}
+.spark i.zero{background:var(--track);max-height:4px}
+.spark i.today{background:var(--fill)}
+.ring{position:absolute;right:18px;top:50%;width:62px;height:62px;margin-top:-31px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke:var(--track);stroke-width:5}
+.ring .value{stroke:var(--fill);stroke-linecap:round}
+.dots{position:absolute;right:18px;bottom:24px;display:grid;gap:8px;width:62px}
+.dots i{display:flex;align-items:center;gap:7px}
+.dots b{width:7px;height:7px;border-radius:50%;background:var(--good)}
+.dots b.off{background:var(--spark)}
+.dots span{flex:1;height:2px;background:var(--track)}
+.command{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:20px}
+.mission{display:flex;flex-direction:column;min-height:320px;background:radial-gradient(ellipse at 85% 100%,var(--surface-3),transparent 70%),var(--surface)}
+.mission h2{display:flex;align-items:center;gap:11px;font-size:18px;font-weight:500}
+.mission-icon{display:grid;place-items:center;width:26px;height:26px;border:1px solid var(--border-strong);border-radius:50%}
+.mission-icon .icon{width:14px;height:14px}
+.round{display:grid;place-items:center;width:38px;height:38px;flex:none;border-radius:50%;border:1px solid var(--border-strong);background:var(--surface-3);color:var(--text)}
+.round:hover{border-color:var(--muted)}
+.tag{display:inline-flex;align-self:flex-start;padding:3px 11px;border:1px solid var(--border-strong);border-radius:50px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--warn);background:var(--warn-bg)}
+.tag.win{color:var(--good);background:var(--good-bg)}
+.mission-title{font-size:21px;font-weight:520;letter-spacing:-.5px;line-height:1.4;margin-top:12px;max-width:660px;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.mission-desc{font-size:13px;color:var(--muted);line-height:1.65;margin-top:8px}
+.mission-body{flex:1}
+.mission-bottom{display:flex;align-items:center;gap:22px;margin-top:22px}
+.progress-line{display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px;color:var(--muted)}
+.mission-meta{display:flex;align-items:center;gap:7px;margin-top:12px;font-size:12px;color:var(--muted)}
+.mission-meta .icon{width:14px;height:14px}
+.play{display:grid;place-items:center;width:50px;height:50px;flex:none;border-radius:50%;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);box-shadow:0 6px 20px #0004}
+.play:hover{transform:translateY(-1px)}
+.play .icon{width:19px;height:19px;fill:currentColor;stroke-width:1}
+.agenda .panelhead{padding-bottom:12px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.agenda-line{display:grid;grid-template-columns:46px 10px minmax(0,1fr) auto;align-items:start;gap:12px;padding:9px 0 3px;min-height:46px;cursor:pointer}
+.agenda-time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.agenda-check{appearance:none;-webkit-appearance:none;position:relative;width:10px;height:10px;margin:5px 0 0;border-radius:50%;border:1px solid var(--dot-a);background:var(--dot-a);cursor:pointer}
+.agenda-line:nth-child(3n+2) .agenda-check{border-color:var(--dot-b);background:var(--dot-b)}
+.agenda-line:nth-child(3n) .agenda-check{border-color:var(--dot-c);background:var(--dot-c)}
+.agenda-check:checked{background:transparent}
+.agenda-check:before{content:'';position:absolute;left:3.5px;top:12px;width:1px;height:30px;background:var(--border)}
+.agenda-line:last-child .agenda-check:before{display:none}
+.agenda-line strong{display:block;font-size:13px;font-weight:500;line-height:1.45}
+.agenda-line:hover strong{text-decoration:underline}
+.agenda-line.done strong{text-decoration:line-through;color:var(--faint)}
+.agenda-detail{display:block;font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agenda-note{margin-top:8px;font-size:12px;color:var(--muted)}
+.section-divider{display:flex;align-items:center;gap:12px;margin:28px 0 16px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--faint)}
+.section-divider:after{content:'';flex:1;height:1px;background:var(--border)}
+.secondary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.win-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);font-size:13px}
+.win-row:last-child{border:0}
+.win-num{font-size:11px;font-variant-numeric:tabular-nums;color:var(--faint);width:20px}
+.win-row.done .flex1{text-decoration:line-through;color:var(--faint)}
+.paper{background:var(--paper);border-color:var(--paper);color:var(--paper-ink)}
+.paper .eyebrow,.paper .micro,.paper .itemdetail{color:var(--paper-muted)}
+.paper .btn{background:var(--paper-ink);color:var(--paper);border-color:var(--paper-ink)}
+.paper .listrow{border-color:var(--paper-line)}
+.edition-title{font:38px/1 Georgia,serif;letter-spacing:-1.4px;margin:14px 0 6px}
+.edition-title i{font-weight:400}
+
+/* Projects */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.chips button{min-height:32px;padding:4px 12px;border:1px solid var(--border-strong);border-radius:30px;background:transparent;color:var(--muted);font-size:12px}
+.chips button:hover{color:var(--text)}
+.chips button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.projectcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.project{display:flex;flex-direction:column;gap:14px;min-width:0;padding:20px;border:1px solid var(--border-strong);border-radius:14px;background:var(--surface-2)}
+.client{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--faint);margin-bottom:3px}
+.project h3{font-size:18px;font-weight:550;letter-spacing:-.4px;overflow-wrap:anywhere}
+.next{border-left:2px solid var(--border-strong);padding-left:12px}
+.next .eyebrow{margin-bottom:3px}
+.next p{font-size:13px;overflow-wrap:anywhere}
+.blocker{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--bad);overflow-wrap:anywhere}
+.blocker .icon{width:14px;height:14px}
+.meta-row,.links{display:flex;flex-wrap:wrap;gap:6px}
+.linkpill{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:3px 10px;border:1px solid var(--border-strong);border-radius:30px;font-size:12px;color:var(--text-2);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.linkpill:hover{border-color:var(--muted);color:var(--text)}
+.linkpill .icon{width:13px;height:13px}
+.paper .linkpill{border-color:var(--paper-line);color:var(--paper-ink)}
+.project .bottom{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.barlist{display:grid;gap:12px}
+.barlist .row{font-size:13px;margin-bottom:6px}
+.log-entry{display:grid;grid-template-columns:70px minmax(0,1fr);gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.log-entry:last-child{border:0}
+.log-entry time{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums;padding-top:3px}
+.modal-section{margin-top:20px}
+.modal-section>.eyebrow{margin-bottom:8px}
+.loggrid{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:8px;align-items:end}
+
+/* Focus, rituals, edition */
+.timer{padding:30px;border-radius:14px;text-align:center;background:radial-gradient(ellipse at top,var(--surface-3),var(--surface) 70%);border:1px solid var(--border)}
+.timer select{display:block;max-width:340px;margin:0 auto 12px}
+.timerclock{font-size:clamp(58px,9vw,92px);font-weight:550;letter-spacing:-4px;line-height:1.2;font-variant-numeric:tabular-nums}
+.timer .progress{max-width:520px;margin:6px auto 0}
+.timerrow{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:18px}
+.phase{margin-bottom:14px}
+.phasehead{font-size:11px;text-transform:uppercase;letter-spacing:1.6px;color:var(--kicker);margin:14px 0 4px}
+.time{min-width:48px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stat{min-height:118px}
+.stat .number{font-size:32px;font-weight:550;letter-spacing:-1px;margin:8px 0 2px}
+.breath{display:flex;flex-direction:column;align-items:center;justify-content:center;width:190px;height:190px;margin:28px auto;border-radius:50%;border:2px solid var(--border-strong);background:radial-gradient(circle,var(--surface-3),var(--surface));transition:transform 3.9s linear}
+.breath b{font-size:22px;font-weight:550}
+.breath span{color:var(--muted)}
+
+/* The Daily Edition — editorial design system */
+:root{--serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif}
+.edition{min-width:0}
+.edition.porcelain{--surface:#f7f4ee;--surface-2:#fffdf8;--surface-3:#ebe5d9;--hover:#ece5d8;--border:#dbd2c2;--border-strong:#c7bca9;--text:#1b1813;--text-2:#3b352d;--muted:#584f45;--faint:#62594e;--kicker:#4d463d;--accent:#1b1813;--on-accent:#f7f4ee;--focus:#6b4f2a;--btn:#efe8db;--btn-hover:#e4dbcb;--input:#fffdf8;--track:#e2d9c8;--fill:#3b352d;--good:#2f6a50;--good-bg:#dfeee3;--warn:#7a4e1b;--warn-bg:#f2e4cf;--bad:#983333;--bad-bg:#f5dcd8;color-scheme:light;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:16px;padding:22px 28px 28px}
+.edition-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:38px}
+.edition-tools .eyebrow{letter-spacing:2.5px}
+.masthead{text-align:center;padding:14px 4px 12px;margin:6px 0 0;border-top:1px solid var(--text-2);border-bottom:3px double var(--text-2)}
+.masthead h1{font:400 clamp(40px,6.2vw,78px)/1.04 var(--serif);letter-spacing:-1.6px}
+.dateline{display:flex;justify-content:center;flex-wrap:wrap;gap:4px 16px;margin-top:10px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.dateline button{border:0;background:none;color:inherit;font:inherit;padding:0;text-decoration:underline;text-underline-offset:3px}
+.dateline .warn{color:var(--warn)}
+.deskbar{display:flex;gap:2px;overflow-x:auto;margin:0 0 26px;border-bottom:1px solid var(--border);scrollbar-width:none}
+.deskbar::-webkit-scrollbar{display:none}
+.deskbar>:first-child{margin-left:auto}.deskbar>:last-child{margin-right:auto}
+.deskbar button{flex:none;min-height:44px;padding:0 12px;border:0;border-bottom:2px solid transparent;background:none;color:var(--muted);font-size:13px;white-space:nowrap}
+.deskbar button:hover{color:var(--text)}
+.deskbar button[aria-current=page]{color:var(--text);border-bottom-color:var(--text)}
+.notice{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:22px;padding:11px 14px;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-3);font-size:13px;color:var(--text-2)}
+.notice>span{flex:1;min-width:200px}
+.story-card{position:relative;min-width:0}
+.story-card .eyebrow{margin-bottom:6px;color:var(--kicker)}
+.story-title{font-family:var(--serif);font-weight:500;letter-spacing:-.2px;line-height:1.2;overflow-wrap:anywhere}
+.stretch{all:unset;cursor:pointer;font:inherit;color:inherit}
+.stretch:after{content:'';position:absolute;inset:0}
+.stretch:focus-visible{outline:none}
+.story-card:hover .stretch{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
+.story-card:focus-within{outline:2px solid var(--focus);outline-offset:6px;border-radius:4px}
+.story-card.is-read .story-title{color:var(--muted)}
+.byline{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:var(--faint)}
+.read-mark{font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.figure{position:relative;overflow:hidden;border-radius:6px;background:var(--surface-3);margin:0 0 12px;aspect-ratio:16/9}
+.figure img{display:block;width:100%;height:100%;object-fit:cover}
+.story-dek{font-size:15px;line-height:1.6;color:var(--text-2);margin-top:10px}
+.front{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);gap:32px;padding-bottom:28px;border-bottom:1px solid var(--border)}
+.splash .story-title{font-size:clamp(28px,3.3vw,46px);letter-spacing:-.8px;line-height:1.1}
+.front-top{border-left:1px solid var(--border);padding-left:28px}
+.section-label{font-size:11px;font-weight:650;letter-spacing:2px;text-transform:uppercase;color:var(--kicker);padding-bottom:10px;border-bottom:2px solid var(--text-2)}
+.story-card.top{padding:14px 0;border-bottom:1px solid var(--border)}
+.story-card.top:last-child{border-bottom:0}
+.top .story-title{font-size:19px}
+.desks-grid{display:grid;grid-template-columns:minmax(0,1fr)}
+.desk-col{min-width:0;padding:22px 0 18px;border-bottom:1px solid var(--border)}
+.desk-name{margin-bottom:12px}
+.desk-name .text-button{font-size:11px;font-weight:650;letter-spacing:2px;text-transform:uppercase;color:var(--text);padding:6px 0}
+.thumb .figure{aspect-ratio:3/2}
+.thumb .story-title{font-size:20px}
+.story-card.brief{padding:11px 0;border-top:1px solid var(--border)}
+.story-card.brief .story-title{font-size:16px;line-height:1.3}
+.end-note{padding:28px 0 4px;text-align:center;font:italic 15px var(--serif);color:var(--faint)}
+.desk-head{text-align:center;max-width:760px;margin:4px auto 26px}
+.desk-title{font:400 clamp(30px,3.6vw,44px)/1.1 var(--serif);letter-spacing:-.8px;margin-top:4px}
+.desk-head .lead{margin:10px auto 0}
+.desk-lead{padding-bottom:24px;border-bottom:1px solid var(--border)}
+.deskLead .story-title{font-size:clamp(26px,3vw,40px);line-height:1.12}
+.deskLead .figure{max-height:480px}
+.desk-list{columns:2;column-gap:36px;margin-top:6px}
+.desk-list .story-card{break-inside:avoid}
+.setup .steps{margin:14px 0 10px;padding-left:20px;display:grid;gap:8px;color:var(--text-2)}
+.setup code,.hint code{font-size:12px;padding:1px 5px;border-radius:4px;background:var(--surface-3)}
+.article-title{font-size:clamp(26px,3vw,36px);line-height:1.15}
+.article-view .figure{margin-bottom:16px}
+.article-view figcaption{position:absolute;right:8px;bottom:8px;padding:2px 8px;border-radius:4px;background:#000b;color:#fff;font-size:11px}
+.fieldset{margin:0;padding:12px 14px 14px;border:1px solid var(--border);border-radius:10px}
+.fieldset legend{padding:0 6px;font-size:12px;color:var(--muted)}
+.weights{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.listrow.is-read .itemname{color:var(--muted);font-weight:450}
+.edition-preview .preview-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:28px}
+.preview-lead{font:500 26px/1.18 var(--serif);letter-spacing:-.4px;margin:4px 0 8px;overflow-wrap:anywhere}
+.headline-link,.stretch-text{all:unset;cursor:pointer;font:inherit;color:inherit}
+.headline-link{display:block;font:500 16px/1.3 var(--serif);margin-top:2px;overflow-wrap:anywhere}
+.headline-link:hover,.stretch-text:hover{text-decoration:underline}
+.headline-link:focus-visible,.stretch-text:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
+@media (min-width:761px) and (max-width:1180px){.desks-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.desk-col:nth-child(odd){padding-right:22px;border-right:1px solid var(--border)}.desk-col:nth-child(even){padding-left:22px}}
+@media (min-width:1181px){.desks-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.desk-col{padding:22px}.desk-col:nth-child(3n+1){padding-left:0}.desk-col:nth-child(3n){padding-right:0}.desk-col:not(:nth-child(3n)){border-right:1px solid var(--border)}.desk-col:last-child:nth-child(3n+1){grid-column:1/-1;padding-right:0;border-right:0}.desk-col:last-child:nth-child(3n+1){display:grid}}
+@media (min-width:761px) and (max-width:1180px){.desk-col:last-child:nth-child(odd){grid-column:1/-1;padding-right:0;border-right:0}.desk-col:last-child:nth-child(odd){display:grid}}
+.desk-col{grid-template-columns:repeat(3,minmax(0,1fr));column-gap:44px;align-items:start}.desk-col .desk-name{grid-column:1/-1}
+@media (max-width:980px){.front{grid-template-columns:minmax(0,1fr);gap:18px}.front-top{border-left:0;padding-left:0}.edition-preview .preview-grid{grid-template-columns:minmax(0,1fr);gap:6px}}
+@media (max-width:760px){.edition.porcelain{padding:16px;border-radius:12px}.desk-list{columns:1}.weights{grid-template-columns:minmax(0,1fr)}.masthead h1{font-size:44px}.splash .story-title{font-size:30px}}
+
+/* Overlays */
+.modalback{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;padding:18px;background:var(--scrim);backdrop-filter:blur(6px)}
+.modalback.open{display:flex}
+.modal{width:100%;max-width:580px;max-height:92vh;overflow:auto;padding:24px;border:1px solid var(--border-strong);border-radius:16px;background:var(--surface);box-shadow:var(--shadow)}
+.modal.wide{max-width:760px}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.modalactions{display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin-top:20px}
+.toast{position:fixed;right:20px;bottom:20px;z-index:40;display:flex;align-items:center;gap:14px;max-width:400px;padding:11px 14px;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-3);color:var(--text);box-shadow:var(--shadow);font-size:13px;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .2s,transform .2s}
+.toast.show{opacity:1;transform:none;pointer-events:auto}
+.toast button{border:0;background:transparent;color:var(--text);font-weight:600;text-decoration:underline;padding:4px}
+.search-results{display:grid;gap:6px;margin-top:14px;max-height:50vh;overflow:auto}
+.search-result{display:block;width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface-2);text-align:left}
+.search-result:hover,.search-result:focus-visible{background:var(--hover)}
+.search-result strong{display:block;font-size:13px;font-weight:550;overflow-wrap:anywhere}
+.search-result small{font-size:12px;color:var(--faint)}
+.crash{border-color:var(--bad)}
+
+/* Responsive */
+@media (max-width:1180px){
+  .app{--sidew:196px}
+  .main{padding:24px}
+  .metrics{gap:12px}
+  .metric{padding:16px}
+  .spark,.dots{width:50px;right:14px}
+  .ring{width:52px;height:52px;margin-top:-26px;right:14px}
+  .projectcards{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:980px){
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .command,.secondary,.cols2,.cols3{grid-template-columns:minmax(0,1fr)}
+  .hero-quote,.clock{display:none}
+}
+@media (max-width:760px){
+  .app{display:block;width:100%;margin:0;border:0;border-radius:0;min-height:100vh;background:var(--frame)}
+  .main{border-left:0}
+  .hide-phone{display:none}
+  .paper>.row.between:first-child{flex-direction:column;align-items:flex-start;gap:2px}
+  .sidebar{position:fixed;inset:0 auto 0 0;z-index:25;width:260px;height:100%;padding-top:max(24px, env(safe-area-inset-top));transform:translateX(-105%);transition:transform .2s;box-shadow:var(--shadow)}
+  .app.drawer-open .sidebar{transform:none}
+  .app.drawer-open .backdrop{display:block;position:fixed;inset:0;z-index:24;border:0;background:var(--scrim)}
+  .main{padding:max(16px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom))}
+  .topbar{margin-bottom:22px;gap:6px}
+  .mobile-menu{display:inline-grid}
+  .search-trigger{flex:1;width:auto;max-width:none;min-width:0}
+  .search-trigger kbd{display:none}
+  .icon-button,.round{width:42px;height:42px}
+  .topright{gap:0}
+  .tool-optional{display:none}
+  .hero{margin-bottom:20px}
+  .metric{height:116px;padding:15px}
+  .metric-number{font-size:27px}
+  .metric-foot{max-width:60%}
+  .spark,.dots{width:40px;height:46px;right:12px;bottom:18px}
+  .ring{width:44px;height:44px;margin-top:-22px;right:12px}
+  .panel{padding:18px}
+  .mission{min-height:0}
+  .mission-title{font-size:19px}
+  .projectcards,.field2{grid-template-columns:minmax(0,1fr)}
+  .loggrid{grid-template-columns:minmax(0,1fr)}
+  .agenda-detail{white-space:normal}
+  .nav button,.quick button{min-height:44px}
+  .btn{min-height:40px}
+  .btn.small{min-height:36px}
+  .input,select,textarea{font-size:16px}
+  .timer{padding:24px 12px}
+  .timerclock{font-size:62px}
+  .toast{left:16px;right:16px;bottom:max(16px, env(safe-area-inset-bottom));max-width:none}
+  .modal{padding:20px}
+}
+@media (max-width:420px){
+  .metrics{gap:10px}
+  .metric-foot{font-size:11px}
+  .capture{flex-direction:column}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <button class="backdrop" data-action="closeDrawer" aria-label="Close navigation" tabindex="-1"></button>
+  <aside class="sidebar" id="sidebar" aria-label="Sidebar">
+    <div class="brandrow">
+      <div class="logo"><div class="logotype">FUMO.</div></div>
+      <button class="icon-button collapse-btn" id="collapseBtn" data-action="toggleSidebar" data-icon="collapse" aria-label="Collapse sidebar" title="Collapse sidebar" aria-expanded="true"></button>
+    </div>
+    <nav class="nav" id="nav" aria-label="Main navigation"></nav>
+    <div class="quick">
+      <p class="quick-label">Quick actions</p>
+      <button type="button" data-action="newNote" data-icon="note" aria-label="Capture a note" title="Capture a note"><span class="label">Capture note</span></button>
+      <button type="button" data-action="newWaiting" data-icon="follow" aria-label="Add a follow-up" title="Add a follow-up"><span class="label">Add follow-up</span></button>
+      <button type="button" data-action="newWorkout" data-icon="workout" aria-label="Log a workout" title="Log a workout"><span class="label">Log workout</span></button>
+      <button type="button" data-action="newReading" data-icon="link" aria-label="Save a link" title="Save a link"><span class="label">Save a link</span></button>
+    </div>
+    <div class="sidefoot">
+      <span class="avatar" id="avatar" aria-hidden="true">F</span>
+      <div class="profile-label"><strong id="profileName">Set your name</strong><span>Agency workspace</span></div>
+      <button class="icon-button" data-action="navigate" data-id="settings" data-icon="settings" aria-label="Settings" title="Settings"></button>
+    </div>
+  </aside>
+  <main class="main" id="main">
+    <header class="topbar">
+      <button class="icon-button mobile-menu" id="menuBtn" data-action="openDrawer" data-icon="menu" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar"></button>
+      <button class="search-trigger" data-action="openSearch" aria-label="Search everything"><span data-icon="search"></span><span>Search anything…</span><kbd id="searchKbd">Ctrl K</kbd></button>
+      <div class="topright">
+        <button class="timer-chip" id="timerChip" data-action="navigate" data-id="focus"><i></i><span id="timerChipText"></span></button>
+        <span class="clock" id="clock"></span>
+        <button class="icon-button" id="themeBtn" data-action="toggleTheme"></button>
+        <button class="icon-button tool-optional" data-action="resetModal" data-icon="reset" aria-label="Breathing reset" title="Breathing reset"></button>
+        <button class="icon-button" data-action="shutdownModal" data-icon="power" aria-label="Evening shutdown" title="Evening shutdown"></button>
+      </div>
+    </header>
+    <div id="page"></div>
+    <footer class="footer"><span>FUMO · V0.5</span><span>Private · Sync and backups in Settings</span></footer>
+  </main>
+</div>
+<div class="modalback" id="modalback">
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modaltitle">
+    <div class="modal-head"><h2 id="modaltitle"></h2><button class="icon-button" data-action="closeModal" data-icon="x" aria-label="Close"></button></div>
+    <div id="modalcontent"></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="importfile" accept=".json,application/json" hidden>
+<script>
+(() => {
+'use strict';
+
+/* ---------- Utilities ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => globalThis.crypto?.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2);
+const pad = v => String(v).padStart(2, '0');
+const LOCALE = 'en-GB';
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseDay = k => { const [y, m, d] = String(k).split('-').map(Number); return new Date(y, m - 1, d); };
+const shiftDay = (k, n) => { const x = parseDay(k); x.setDate(x.getDate() + n); return dayKey(x); };
+const today = () => dayKey();
+const tomorrow = () => shiftDay(today(), 1);
+const daysBetween = (a, b) => Math.round((parseDay(b) - parseDay(a)) / 864e5);
+const lastDays = n => Array.from({ length: n }, (_, i) => shiftDay(today(), i - n + 1));
+const inLastDays = (k, n) => k >= shiftDay(today(), -(n - 1)) && k <= today();
+const toMin = t => { const [h, m] = String(t).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+const fmtDay = (k, o = { day: 'numeric', month: 'short' }) => parseDay(k).toLocaleDateString(LOCALE, o);
+const hours = m => { const h = (Number(m) || 0) / 60; return Number.isInteger(h) ? String(h) : h.toFixed(1); };
+const clockText = s => `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+const percent = (a, b) => b ? Math.round(a / b * 100) : 0;
+const sum = (list, f) => list.reduce((n, x) => n + (Number(f(x)) || 0), 0);
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const ago = k => { const d = daysBetween(k, today()); return d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d}d ago`; };
+const dueText = k => { const d = daysBetween(today(), k); return d < 0 ? `${-d}d overdue` : d === 0 ? 'Due today' : d === 1 ? 'Due tomorrow' : `Due in ${d}d`; };
+const dueClass = k => { const d = daysBetween(today(), k); return d < 0 ? 'bad' : d <= 3 ? 'warn' : ''; };
+const IS_MAC = /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || '');
+const MOBILE = '(max-width: 760px)';
+const isMobile = () => matchMedia(MOBILE).matches;
+
+function safeUrl(s) {
+  try { const u = new URL(s); return ['http:', 'https:', 'file:', 'mailto:'].includes(u.protocol) ? u.href : ''; } catch (e) { return ''; }
+}
+/* Accepts URLs, bare domains and Windows paths such as C:\Users\…\outputs. */
+function toUrl(input) {
+  let s = String(input || '').trim();
+  if (!s) return '';
+  if (/^[a-z]:[\\/]/i.test(s)) s = 'file:///' + s.replace(/\\/g, '/');
+  else if (/^\\\\/.test(s)) s = 'file:' + s.replace(/\\/g, '/');
+  else if (/^www\./i.test(s)) s = 'https://' + s;
+  else if (!/^[a-z][a-z0-9+.-]*:/i.test(s) && /^[\w-]+(\.[\w-]+)+([/?#]|$)/.test(s)) s = 'https://' + s;
+  return safeUrl(s);
+}
+const hostOf = u => { try { const x = new URL(u); return x.protocol === 'file:' ? 'Local folder' : x.protocol === 'mailto:' ? 'Email' : x.hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
+
+/* ---------- Constants ---------- */
+const STORAGE_KEY = 'fumo.personal.v01', UI_THEME = 'fumo.ui.theme', UI_SIDEBAR = 'fumo.ui.sidebar';
+const PHASES = ['Morning Deep Focus', 'Midday Operational Sync', 'Afternoon Sprint', 'Evening Wind-Down'];
+const STATUSES = ['Active', 'Review', 'Waiting', 'Blocked', 'Parked', 'Completed'];
+const STATUS_TONE = { Active: 'good', Review: 'warn', Waiting: 'warn', Blocked: 'bad', Completed: 'good' };
+const PRIORITIES = ['Critical', 'High', 'Medium', 'Low'];
+const RANK = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+const HABIT_CATS = ['Focus', 'Physical', 'Recovery'];
+const WORKOUT_TYPES = ['Strength', 'Calisthenics', 'Running', 'Cycling', 'Mobility', 'Cardio', 'Other'];
+const RENEWAL_KINDS = ['Domain', 'Hosting / VPS', 'SSL certificate', 'API key', 'Subscription', 'Other'];
+const DESKS_DEF = [
+  { id: 'cars', name: 'The Motoring Desk', coverage: 'Supercars, sports cars, JDM, tuning, motorsport, performance engineering and the automotive industry.' },
+  { id: 'wall', name: 'Wall Street', coverage: 'Equities, crypto, macroeconomics, commodities, investing and market-moving developments.' },
+  { id: 'time', name: 'The Timepiece', coverage: 'Luxury watches, horology, releases, independent makers, collecting and auctions.' },
+  { id: 'tech', name: 'The Frontier', coverage: 'AI, new models, robotics, software, semiconductors, automation and cybersecurity.' },
+  { id: 'fashion', name: 'The Atelier', coverage: 'High fashion, streetwear, collections, sneakers, collaborations and emerging designers.' },
+  { id: 'after', name: 'After Hours', coverage: 'Electronic music, DJ culture, nightlife, festivals and creative scenes.' },
+  { id: 'private', name: 'The Private Office', coverage: 'Entrepreneurship, venture capital, acquisitions, private wealth and luxury hospitality.' }
+];
+const DESK_IDS = DESKS_DEF.map(d => d.id);
+const DEFAULT_WEIGHTS = { cars: 3, wall: 3, time: 2, tech: 3, fashion: 2, after: 2, private: 2 };
+/* Library entries can also be unfiled. */
+const DESKS = [...DESKS_DEF.map(d => [d.id, d.name]), ['work', 'Unfiled']];
+const deskName = k => (editionData()?.desks.find(d => d.id === k) || DESKS_DEF.find(d => d.id === k))?.name || (k === 'work' ? 'Unfiled' : 'The Edition');
+const EDITION_KEY = 'fumo.edition.cache', EDITION_SECRET = 'fumo.edition.key';
+const DEFAULT_CHECKLIST = ['Tested at phone width', 'Sample data looks real — no lorem ipsum', 'No leftover names or branding from other clients', 'Opens cleanly in a fresh browser', 'Talking points and the next ask are ready'];
+const NAV = [['command', 'command', 'Command Centre'], ['focus', 'focus', 'Focus'], ['projects', 'projects', 'Projects'], ['followups', 'follow', 'Follow-ups'], ['performance', 'performance', 'Performance'], ['rituals', 'rituals', 'Rituals'], ['edition', 'edition', 'The Daily Edition'], ['inbox', 'inbox', 'Inbox']];
+const PAGE_TITLES = { command: 'Command Centre', focus: 'Focus', projects: 'Projects', followups: 'Follow-ups', performance: 'Performance', rituals: 'Rituals', edition: 'The Daily Edition', inbox: 'Inbox', settings: 'Settings' };
+
+/* ---------- Starter data (used only when this browser has no FUMO records) ---------- */
+const seed = () => ({
+  version: 1, lastDay: today(), energy: 'Focused', profile: { name: '' },
+  blocks: [['09:00', 0, 'Plan the day', 'Choose three outcomes', 15], ['09:15', 0, 'Deep focus', 'One demanding objective', 90], ['10:45', 0, 'Reset and recover', 'Hydrate, walk and rest your eyes', 15], ['11:00', 0, 'Deep focus II', 'Complete the critical deliverable', 75], ['12:30', 1, 'Lunch and movement', 'Step away from your desk', 45], ['13:30', 1, 'Client calls and messages', 'Meetings, approvals and follow-ups', 60], ['15:00', 2, 'Afternoon sprint', 'Execute, review, ship', 75], ['16:15', 2, 'Recovery break', 'Take 15 minutes away', 15], ['17:00', 3, 'Daily shutdown', 'Review, plan tomorrow, disconnect', 20]]
+    .map(([time, phase, title, detail, duration]) => ({ id: uid(), time, phase, title, detail, duration, done: false })),
+  projects: [
+    ['Welcome to FUMO', 'Own product', 'Active', 'High', 'Add your first real project, then archive this one', ''],
+    ['Example client project', 'Example client', 'Review', 'Medium', 'Give it a due date and links so FUMO can rank it', 'Waiting on client feedback']
+  ].map(([title, client, status, priority, next, blocker]) => ({ id: uid(), title, client, status, priority, next, blocker, due: '', links: [], log: [], checks: {}, archived: false })),
+  habits: [['Daily intention', 'Focus'], ['Uninterrupted focus block', 'Focus'], ['Movement / workout', 'Physical'], ['Drink water', 'Physical'], ['Recovery break', 'Recovery'], ['Evening shutdown', 'Recovery']]
+    .map(([title, category]) => ({ id: uid(), title, category, history: {}, grace: [] })),
+  inbox: [], workouts: [], sessions: [], waiting: [], renewals: [], reading: [],
+  wins: ['', '', ''], winsDone: [false, false, false], winsDate: today(), shutdownDate: null,
+  settings: { focus: 90, break: 15 },
+  timer: { mode: 'focus', length: 5400, seconds: 5400, running: false, end: 0, projectId: '' },
+  checklist: DEFAULT_CHECKLIST.slice()
+});
+
+/* ---------- Normalising: every load, import and cross-tab update goes through here ---------- */
+const str = (v, max = 2000) => (typeof v === 'string' ? v : v == null ? '' : String(v)).slice(0, max);
+const num = (v, d, min, max) => { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : d; };
+const int = (v, d, min, max) => Math.round(num(v, d, min, max));
+const oneOf = (v, list, d) => list.includes(v) ? v : d;
+const isDay = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+const dayOr = (v, d = '') => isDay(v) ? v : d;
+const okId = v => typeof v === 'string' && /^[\w-]{1,80}$/.test(v) ? v : uid();
+const records = v => Array.isArray(v) ? v.filter(x => x && typeof x === 'object').slice(0, 5000) : [];
+const plainObject = v => v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+
+function normalize(o) {
+  if (!o || typeof o !== 'object' || o.version !== 1) throw Error('This is not a supported FUMO backup');
+  for (const k of ['projects', 'blocks', 'habits', 'inbox', 'workouts']) if (!Array.isArray(o[k])) throw Error(`Backup is missing ${k}`);
+  const settings = { focus: int(o.settings?.focus, 90, 1, 240), break: int(o.settings?.break, 15, 1, 120) };
+  const mode = oneOf(o.timer?.mode, ['focus', 'break'], 'focus');
+  const length = int(o.timer?.length, settings[mode] * 60, 60, 4 * 3600);
+  const blocker = v => { const b = str(v, 700).trim(); return b === 'None' ? '' : b; };
+  return {
+    ...o,
+    version: 1,
+    lastDay: dayOr(o.lastDay, today()),
+    energy: str(o.energy, 40) || 'Focused',
+    profile: { name: str(o.profile?.name, 40).trim() },
+    settings,
+    blocks: records(o.blocks).map(b => ({ id: okId(b.id), time: /^\d{2}:\d{2}$/.test(b.time) ? b.time : '09:00', phase: int(b.phase, 0, 0, 3), title: str(b.title, 150) || 'Untitled block', detail: str(b.detail, 500), duration: int(b.duration, 30, 1, 600), done: !!b.done })),
+    projects: records(o.projects).map(p => ({
+      ...p, id: okId(p.id), title: str(p.title, 150) || 'Untitled project', client: str(p.client, 80).trim(),
+      status: oneOf(p.status, STATUSES, 'Active'), priority: oneOf(p.priority, PRIORITIES, 'Medium'),
+      next: str(p.next, 1000), blocker: blocker(p.blocker), due: dayOr(p.due), archived: !!p.archived,
+      links: records(p.links).map(l => ({ label: str(l.label, 80), url: safeUrl(str(l.url, 800)) })).filter(l => l.url).slice(0, 12),
+      log: records(p.log).map(e => ({ id: okId(e.id), date: dayOr(e.date, today()), version: str(e.version, 40), note: str(e.note, 1000) })),
+      checks: Object.fromEntries(Object.entries(plainObject(p.checks)).filter(([, v]) => v === true).map(([k]) => [str(k, 200), true]))
+    })),
+    habits: records(o.habits).map(h => ({ id: okId(h.id), title: str(h.title, 150) || 'Untitled habit', category: oneOf(h.category, HABIT_CATS, 'Focus'), history: Object.fromEntries(Object.entries(plainObject(h.history)).filter(([k, v]) => isDay(k) && v === true)), grace: (Array.isArray(h.grace) ? h.grace : []).filter(isDay) })),
+    inbox: records(o.inbox).map(n => ({ id: okId(n.id), text: str(n.text, 2000), created: str(n.created, 40), projectId: str(n.projectId, 80) })).filter(n => n.text),
+    workouts: records(o.workouts).map(w => ({ id: okId(w.id), title: str(w.title, 150) || 'Training session', type: oneOf(w.type, WORKOUT_TYPES, 'Other'), minutes: int(w.minutes, 0, 0, 1440), date: dayOr(w.date, today()), notes: str(w.notes, 600), skills: records(w.skills).slice(0, 20).map(s => ({ name: str(s.name, 60) || 'Skill', sets: int(s.sets, 1, 1, 100), reps: int(s.reps, 1, 1, 10000), unit: s.unit === 's' ? 's' : '' })) })),
+    wins: [0, 1, 2].map(i => str(o.wins?.[i], 300)),
+    winsDone: [0, 1, 2].map(i => !!o.winsDone?.[i]),
+    winsDate: dayOr(o.winsDate, today()),
+    shutdownDate: dayOr(o.shutdownDate, null),
+    timer: { mode, length, seconds: int(o.timer?.seconds, length, 0, length), running: !!o.timer?.running && Number(o.timer?.end) > 0, end: num(o.timer?.end, 0, 0, 1e15), projectId: str(o.timer?.projectId, 80) },
+    sessions: records(o.sessions).map(s => ({ id: okId(s.id), date: dayOr(s.date, today()), minutes: int(s.minutes, 0, 0, 600), projectId: str(s.projectId, 80) })).filter(s => s.minutes > 0),
+    waiting: records(o.waiting).map(w => ({ id: okId(w.id), who: str(w.who, 80) || 'Someone', what: str(w.what, 300), projectId: str(w.projectId, 80), since: dayOr(w.since, today()), nudged: dayOr(w.nudged), done: !!w.done, resolved: dayOr(w.resolved) })),
+    renewals: records(o.renewals).map(r => ({ id: okId(r.id), name: str(r.name, 120) || 'Renewal', kind: oneOf(r.kind, RENEWAL_KINDS, 'Other'), date: dayOr(r.date), note: str(r.note, 300) })).filter(r => r.date),
+    reading: records(o.reading).map(r => ({ id: okId(r.id), url: safeUrl(str(r.url, 800)), title: str(r.title, 200), desk: oneOf(r.desk, DESKS.map(d => d[0]), 'work'), added: dayOr(r.added, today()), read: !!r.read, source: str(r.source, 80), published: str(r.published, 40), summary: str(r.summary, 320), storyId: /^[\w-]{1,40}$/.test(r.storyId) ? r.storyId : '' })).filter(r => r.url),
+    editionPrefs: (() => {
+      const p = plainObject(o.editionPrefs), w = plainObject(p.weights), feed = safeUrl(str(p.feedUrl, 500));
+      const extra = Object.entries(w).filter(([k]) => !DESK_IDS.includes(k) && /^[\w-]{1,30}$/.test(k)).slice(0, 20).map(([k, v]) => [k, int(v, 2, 0, 3)]);
+      const repo = /^github:[A-Za-z0-9-]{1,39}\/[\w.-]{1,100}$/.test(str(p.feedUrl, 160)) ? p.feedUrl : '';
+      return { feedUrl: repo || (feed.startsWith('https://') ? feed : ''), weights: Object.fromEntries([...DESK_IDS.map(id => [id, int(w[id], DEFAULT_WEIGHTS[id], 0, 3)]), ...extra]), images: p.images !== false, style: p.style === 'porcelain' ? 'porcelain' : 'obsidian', lastVisit: Number.isFinite(Date.parse(p.lastVisit)) ? new Date(p.lastVisit).toISOString() : '' };
+    })(),
+    editionRead: Object.fromEntries(Object.entries(plainObject(o.editionRead)).filter(([k, v]) => /^[\w-]{1,40}$/.test(k) && v && typeof v === 'object').slice(-400).map(([k, v]) => { const u = safeUrl(str(v.u, 1500)); return [k, { t: str(v.t, 220) || 'Untitled', u: /^https?:/.test(u) ? u : '', s: str(v.s, 80), d: str(v.d, 30), at: dayOr(v.at, today()) }]; })),
+    sync: { repo: /^[A-Za-z0-9-]{1,39}\/[\w.-]{1,100}$/.test(str(o.sync?.repo, 160)) ? o.sync.repo : '' },
+    checklist: Array.isArray(o.checklist) ? o.checklist.map(c => str(c, 200).trim()).filter(Boolean).slice(0, 15) : DEFAULT_CHECKLIST.slice()
+  };
+}
+
+/* ---------- State and storage ---------- */
+let startupNotice = '';
+function load() {
+  let raw = null;
+  try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) { startupNotice = 'Browser storage is unavailable, so nothing will be saved.'; return normalize(seed()); }
+  if (!raw) return normalize(seed());
+  try { return normalize(JSON.parse(raw)); }
+  catch (e) {
+    try { localStorage.setItem(`${STORAGE_KEY}.unreadable-${Date.now()}`, raw); } catch (_) {}
+    startupNotice = 'Your saved data could not be read. A copy was kept aside and starter data was loaded.';
+    return normalize(seed());
+  }
+}
+let state = load();
+let page = 'command', clientFilter = 'all';
+let modal = null, modalOpenerKey = null, breathTimer = null, toastTimer = null, toastUndo = null, lastMinute = -1;
+let prefCollapsed = false;
+try { prefCollapsed = localStorage.getItem(UI_SIDEBAR) === 'collapsed'; } catch (e) {}
+
+function persist() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch (e) { toast('Browser storage is unavailable. Export a backup from Settings.'); }
+}
+function save() {
+  persist();
+  if (syncOn()) { local.set(SYNC_DIRTY, '1'); scheduleSync(); }
+}
+function toast(message, undo) {
+  const t = $('#toast');
+  clearTimeout(toastTimer);
+  toastUndo = undo || null;
+  t.innerHTML = `<span>${esc(message)}</span>${undo ? '<button type="button" data-action="undo">Undo</button>' : ''}`;
+  t.classList.add('show');
+  toastTimer = setTimeout(() => { t.classList.remove('show'); toastUndo = null; }, undo ? 7000 : 3500);
+}
+function withUndo(message, change) {
+  const snapshot = JSON.stringify(state);
+  change();
+  save(); render();
+  toast(message, () => { state = normalize(JSON.parse(snapshot)); });
+}
+
+/* ---------- Derived data ---------- */
+const projectById = id => id ? state.projects.find(p => p.id === id) : undefined;
+const projectName = id => projectById(id)?.title || '';
+const openProjects = () => state.projects.filter(p => !p.archived && p.status !== 'Completed');
+const clientOf = p => p.client || 'No client';
+const focusMinutes = (filter = () => true) => sum(state.sessions.filter(filter), s => s.minutes);
+const waitAge = w => daysBetween(w.nudged && w.nudged > w.since ? w.nudged : w.since, today());
+const openWaiting = () => state.waiting.filter(w => !w.done).sort((a, b) => waitAge(b) - waitAge(a));
+const dueSoonRenewals = n => state.renewals.filter(r => daysBetween(today(), r.date) <= n).sort((a, b) => a.date.localeCompare(b.date));
+const habitPct = () => percent(state.habits.filter(h => h.history[today()]).length, state.habits.length);
+const winsMode = () => state.winsDate === today() ? 'today' : state.winsDate > today() ? 'tomorrow' : 'stale';
+const dueRank = p => p.due && daysBetween(today(), p.due) <= 7 ? daysBetween(today(), p.due) : 1000;
+const projectOrder = (a, b) => (a.status === 'Completed') - (b.status === 'Completed') || dueRank(a) - dueRank(b) || RANK[a.priority] - RANK[b.priority] || a.title.localeCompare(b.title);
+function nextMove() {
+  if (winsMode() === 'today') {
+    const index = state.wins.findIndex((w, i) => w && !state.winsDone[i]);
+    if (index >= 0) return { kind: 'win', index, title: state.wins[index] };
+  }
+  const p = openProjects().filter(x => !['Blocked', 'Parked', 'Waiting'].includes(x.status)).sort(projectOrder)[0];
+  return p ? { kind: 'project', project: p } : null;
+}
+function streak(h) {
+  let count = 0, graceUsed = 0, cur = today();
+  if (!h.history[cur] && !h.grace.includes(cur)) cur = shiftDay(cur, -1);
+  for (let i = 0; i < 365; i++) {
+    if (h.history[cur]) count++;
+    else if (h.grace.includes(cur) && graceUsed < 1) graceUsed++;
+    else break;
+    cur = shiftDay(cur, -1);
+  }
+  return count;
+}
+const graceAllowed = h => !h.history[today()] && !h.grace.includes(today()) && !h.grace.some(d => d >= shiftDay(today(), -6) && d <= today());
+function logSession(minutes, projectId) { if (minutes >= 1) state.sessions.push({ id: uid(), date: today(), minutes: Math.min(600, Math.round(minutes)), projectId: projectId || '' }); }
+function resetTimer(mode) { const t = state.timer; t.mode = mode; t.running = false; t.end = 0; t.length = state.settings[mode] * 60; t.seconds = t.length; }
+/* Returns true when a session finished (and was logged) during this check. */
+function timerSync() {
+  const t = state.timer;
+  if (!t.running) return false;
+  t.seconds = Math.max(0, Math.ceil((t.end - Date.now()) / 1000));
+  if (t.seconds > 0) return false;
+  const finished = t.mode;
+  if (finished === 'focus') logSession(t.length / 60, t.projectId);
+  resetTimer(finished === 'focus' ? 'break' : 'focus');
+  save();
+  toast(finished === 'focus' ? `Focus session logged${projectName(t.projectId) ? ' to ' + projectName(t.projectId) : ''}. Break ready.` : 'Break over. Ready when you are.');
+  beep();
+  return true;
+}
+function beep() { try { const A = window.AudioContext || window.webkitAudioContext, c = new A(), o = c.createOscillator(), g = c.createGain(); o.frequency.value = 650; g.gain.value = .08; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + .35); o.onended = () => c.close(); } catch (e) {} }
+function parseLinks(text) {
+  const out = [], bad = [];
+  String(text).split('\n').map(l => l.trim()).filter(Boolean).slice(0, 12).forEach(line => {
+    const parts = line.split('|');
+    const [label, raw] = parts.length > 1 ? [parts[0].trim(), parts.slice(1).join('|').trim()] : ['', line];
+    const url = toUrl(raw);
+    url ? out.push({ label: label.slice(0, 80), url }) : bad.push(line);
+  });
+  return { out, bad };
+}
+function parseSkills(text) {
+  const out = [], bad = [];
+  String(text).split('\n').map(l => l.trim()).filter(Boolean).slice(0, 20).forEach(line => {
+    const m = line.match(/^(.+?)\s+(\d{1,3})\s*[x×*]\s*(\d{1,5})\s*(s|sec|secs|seconds)?$/i);
+    m ? out.push({ name: m[1].trim().slice(0, 60), sets: +m[2], reps: +m[3], unit: m[4] ? 's' : '' }) : bad.push(line);
+  });
+  return { out, bad };
+}
+
+/* ---------- Markup helpers ---------- */
+const ICONS = {
+  command: 'M3 9l7-6 7 6v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z M8 18v-7h4v7', focus: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M10 7v3l2 2', projects: 'M3 6h5l2-2h7v13H3z M7 9h6',
+  follow: 'M4 6h9 M4 10h6 M4 14h5 M14 11l3 3-3 3 M11 14h6', performance: 'M3 17h14 M5 13V9 M10 13V4 M15 13V7', rituals: 'M5 4h10v13H5z M8 3v3 M12 3v3 M8 10l2 2 3-4',
+  edition: 'M3 4h14v13H3z M6 7h8 M6 10h3 M12 10h2 M6 13h8', inbox: 'M3 5h14v12H3z M3 10h4l1 3h4l1-3h4',
+  settings: 'M10 6a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M10 2v2 M10 16v2 M2 10h2 M16 10h2 M4 4l1.5 1.5 M14.5 14.5 16 16 M16 4l-1.5 1.5 M5.5 14.5 4 16',
+  note: 'M4 3h8l4 4v10H4z M12 3v5h4 M7 11h6 M7 14h4', plus: 'M10 4v12 M4 10h12', workout: 'M6 3v14 M3 6v8 M6 10h8 M14 3v14 M17 6v8',
+  link: 'M8.5 11.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5l-1 1 M11.5 8.5a3.5 3.5 0 0 0-5 0L4 11a3.5 3.5 0 0 0 5 5l1-1',
+  search: 'M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3 M14 14l4 4', sun: 'M10 6a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M10 1v2 M10 17v2 M1 10h2 M17 10h2 M4 4l1 1 M15 15l1 1 M16 4l-1 1 M5 15l-1 1',
+  moon: 'M16 13A7 7 0 0 1 7 4 7 7 0 1 0 9 17a7 7 0 0 0 7-4', arrow: 'M3 10h13 M11 5l5 5-5 5', play: 'M7 4l9 6-9 6z', pause: 'M7 4v12 M13 4v12',
+  collapse: 'M4 3v14 M13 6l-4 4 4 4', menu: 'M3 5h14 M3 10h14 M3 15h14', reset: 'M4 7a7 7 0 1 1-1 6 M4 3v4h4', target: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
+  check: 'M4 10.5l4 4 8-9', x: 'M5 5l10 10 M15 5L5 15', edit: 'M4 16l1-4 8-8 3 3-8 8z M11.5 5.5l3 3', archive: 'M3 4h14v4H3z M4 8v9h12V8 M8 11h4',
+  flag: 'M5 17V3 M5 4h9l-2 3.5 2 3.5H5', clock: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M10 6v4l3 2', alert: 'M10 3l8 14H2z M10 8v4 M10 14.5v.5',
+  power: 'M10 3v7 M6 5.5a6 6 0 1 0 8 0', download: 'M10 3v10 M6 9l4 4 4-4 M4 17h12', upload: 'M10 13V3 M6 7l4-4 4 4 M4 17h12'
+};
+const icon = name => `<svg class="icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="${ICONS[name] || ICONS.command}"/></svg>`;
+const btn = (label, action, o = {}) => `<button type="button" class="btn ${o.cls || ''}" data-action="${action}"${o.id != null && o.id !== '' ? ` data-id="${esc(o.id)}"` : ''}${o.item != null ? ` data-item="${esc(o.item)}"` : ''}${o.label ? ` aria-label="${esc(o.label)}" title="${esc(o.label)}"` : ''} ${o.attrs || ''}>${o.ic ? icon(o.ic) : ''}${label}</button>`;
+const head = (kicker, title, lead, actions = '') => `<div class="pagehead"><div><p class="kicker">${kicker}</p><h1 tabindex="-1">${title}</h1>${lead ? `<p class="lead">${lead}</p>` : ''}</div>${actions ? `<div class="actions">${actions}</div>` : ''}</div>`;
+const panel = (title, sub, body, action = '', cls = '') => `<section class="panel ${cls}"><div class="panelhead"><div><h2>${title}</h2>${sub ? `<p class="sub">${sub}</p>` : ''}</div>${action}</div>${body}</section>`;
+const bar = (p, id = '') => { const v = Math.round(Math.min(100, Math.max(0, p || 0))); return `<div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${v}"${id ? ` id="${id}"` : ''}><div style="width:${v}%"></div></div>`; };
+const field = (id, label, val = '', type = 'text', attrs = '') => `<div class="field"><label for="${id}">${label}</label>${type === 'textarea' ? `<textarea id="${id}" ${attrs}>${esc(val)}</textarea>` : `<input class="input" id="${id}" type="${type}" value="${esc(val)}" ${attrs}>`}</div>`;
+const selectField = (id, label, options, val, attrs = '') => `<div class="field"><label for="${id}">${label}</label><select id="${id}" ${attrs}>${options.map(o => { const [v, l] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(v)}"${v === val ? ' selected' : ''}>${esc(l)}</option>`; }).join('')}</select></div>`;
+const modalFooter = (action, text = 'Save', extra = '') => `<div class="modalactions">${extra ? `<div class="flex1">${extra}</div>` : ''}${btn('Cancel', 'closeModal', { cls: 'quiet' })}${btn(text, action, { cls: 'primary' })}</div>`;
+const linkPills = (links, max = 12) => links.slice(0, max).map(l => `<a class="linkpill" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${icon('link')}${esc(l.label || hostOf(l.url))}</a>`).join('');
+const projectOptions = (selected, none) => `<option value="">${esc(none)}</option>` + state.projects.filter(p => (!p.archived && p.status !== 'Completed') || p.id === selected).sort((a, b) => clientOf(a).localeCompare(clientOf(b)) || a.title.localeCompare(b.title)).map(p => `<option value="${esc(p.id)}"${p.id === selected ? ' selected' : ''}>${esc(p.title)}${p.client ? ' · ' + esc(p.client) : ''}</option>`).join('');
+function miniBars(values, cls = '') {
+  const max = Math.max(1, ...values);
+  return `<span class="spark ${cls}" aria-hidden="true">${values.map((v, i) => `<i class="${v ? '' : 'zero'}${v && i === values.length - 1 ? ' today' : ''}" style="height:${v ? Math.max(12, Math.round(v / max * 100)) : 0}%"></i>`).join('')}</span>`;
+}
+const captureBox = ph => `<div class="capture"><label for="capture" class="sr-only">Quick capture</label><input class="input" id="capture" placeholder="${ph}" maxlength="2000" autocomplete="off">${btn('Add', 'capture', { cls: 'primary', ic: 'plus' })}</div>`;
+const stat = (label, value, meta) => `<div class="panel stat"><p class="statlabel">${label}</p><p class="number">${value}</p><p class="micro">${meta}</p></div>`;
+
+/* ---------- Shared cards ---------- */
+function habitsList(limit) {
+  const list = limit ? state.habits.slice(0, 4) : state.habits;
+  return list.map(h => `<div class="listrow"><input class="check" type="checkbox" data-action="toggleHabit" data-id="${h.id}" aria-label="Mark ${esc(h.title)} complete" ${h.history[today()] ? 'checked' : ''}><div class="flex1"><div class="itemname">${esc(h.title)}</div><div class="itemdetail">${esc(h.category)} · ${plural(streak(h), 'day')} streak${h.grace.includes(today()) ? ' · rest day' : ''}</div></div>${limit ? '' : btn('Rest', 'graceHabit', { cls: 'quiet small', id: h.id, attrs: graceAllowed(h) ? '' : 'disabled' }) + btn('Edit', 'editHabit', { cls: 'quiet small', id: h.id })}</div>`).join('') || '<div class="empty">No habits yet.</div>';
+}
+function blocklist() {
+  return PHASES.map((name, i) => {
+    const rows = state.blocks.filter(b => b.phase === i).sort((a, b) => toMin(a.time) - toMin(b.time));
+    return rows.length ? `<div class="phase"><p class="phasehead">${name}</p>${rows.map(b => `<div class="listrow ${b.done ? 'done' : ''}"><input class="check" type="checkbox" data-action="toggleBlock" data-id="${b.id}" aria-label="Complete ${esc(b.title)}" ${b.done ? 'checked' : ''}><span class="time">${esc(b.time)}</span><div class="flex1"><div class="itemname">${esc(b.title)}</div><div class="itemdetail">${esc(b.detail)}${b.detail ? ' · ' : ''}${b.duration} min</div></div>${btn('Edit', 'editBlock', { cls: 'quiet small', id: b.id })}</div>`).join('')}</div>` : '';
+  }).join('') || '<div class="empty">No routine blocks yet.</div>';
+}
+function inboxRows(limit) {
+  const items = state.inbox.slice().reverse();
+  return (limit ? items.slice(0, limit) : items).map(n => `<div class="listrow"><div class="flex1"><div class="itemname plain">${esc(n.text)}</div>${projectName(n.projectId) ? `<div class="itemdetail">${esc(projectName(n.projectId))}</div>` : ''}</div>${btn('', 'routeNote', { cls: 'quiet small', id: n.id, ic: 'arrow', label: 'Send to a project' })}${btn('', 'deleteInbox', { cls: 'quiet small', id: n.id, ic: 'x', label: 'Delete note' })}</div>`).join('') || '<div class="empty">Clear your head. Write it down and move on.</div>';
+}
+function winsCard() {
+  const mode = winsMode(), set = state.wins.filter(Boolean).length;
+  const title = mode === 'today' ? 'Today’s must-wins' : mode === 'tomorrow' ? 'Tomorrow’s must-wins' : 'Must-wins';
+  const sub = mode === 'today' ? `${state.wins.filter((w, i) => w && state.winsDone[i]).length} of ${set} done` : mode === 'tomorrow' ? 'Set at shutdown · ready for the morning' : 'Nothing set for today';
+  const body = mode === 'stale' || !set
+    ? `<div class="empty">Three outcomes that would make today a win.<div class="mt-s">${btn('Set today’s must-wins', 'winsModal', { cls: 'small primary' })}</div></div>`
+    : state.wins.map((w, i) => w ? `<div class="win-row ${mode === 'today' && state.winsDone[i] ? 'done' : ''}">${mode === 'today' ? `<input type="checkbox" class="check" data-action="toggleWin" data-id="${i}" ${state.winsDone[i] ? 'checked' : ''} aria-label="Mark must-win ${i + 1} done">` : `<span class="win-num">0${i + 1}</span>`}<span class="flex1">${esc(w)}</span></div>` : '').join('');
+  return panel(title, sub, body, btn('Edit', 'winsModal', { cls: 'small quiet', ic: 'edit' }));
+}
+function waitRow(w, full) {
+  const age = waitAge(w), tone = age >= 5 ? 'bad' : age >= 3 ? 'warn' : '';
+  return `<div class="listrow"><div class="flex1"><div class="itemname">${esc(w.who)}${w.what ? ' — ' + esc(w.what) : ''}</div><div class="itemdetail">${projectName(w.projectId) ? esc(projectName(w.projectId)) + ' · ' : ''}asked ${fmtDay(w.since)}${w.nudged ? ` · nudged ${ago(w.nudged)}` : ''}</div></div><span class="pill ${tone}" title="Days since you asked or last nudged">${age}d</span>${btn('', 'nudgeWaiting', { cls: 'quiet small', id: w.id, ic: 'follow', label: `Nudged ${w.who} today` })}${btn('', 'resolveWaiting', { cls: 'quiet small', id: w.id, ic: 'check', label: `Resolved: ${w.who}` })}${full ? btn('', 'editWaiting', { cls: 'quiet small', id: w.id, ic: 'edit', label: 'Edit follow-up' }) : ''}</div>`;
+}
+function waitingCard() {
+  const list = openWaiting();
+  const body = list.length ? list.slice(0, 4).map(w => waitRow(w)).join('') + (list.length > 4 ? `<p class="agenda-note"><button class="text-button" data-action="navigate" data-id="followups">+${list.length - 4} more</button></p>` : '') : '<div class="empty">Nobody owes you anything right now.</div>';
+  return panel('Waiting on', list.length ? plural(list.length, 'open follow-up') : 'Who owes you what', body, btn('Add', 'newWaiting', { cls: 'small quiet', ic: 'plus' }));
+}
+function renewalsPanel() {
+  const list = state.renewals.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const body = list.length ? list.map(r => { const d = daysBetween(today(), r.date); return `<div class="listrow"><div class="flex1"><div class="itemname">${esc(r.name)}</div><div class="itemdetail">${esc(r.kind)}${r.note ? ' · ' + esc(r.note) : ''}</div></div><span class="pill ${d < 0 ? 'bad' : d <= 7 ? 'warn' : ''}">${d < 0 ? `Lapsed ${-d}d ago` : d === 0 ? 'Renews today' : fmtDay(r.date, { day: 'numeric', month: 'short', year: 'numeric' })}</span>${btn('Edit', 'editRenewal', { cls: 'quiet small', id: r.id })}</div>`; }).join('') : '<div class="empty">Track domain, VPS and certificate renewals so nothing lapses on a client.</div>';
+  return panel('Renewals & infrastructure', 'Domains, hosting, certificates and keys — flagged 7 days out', body, btn('Add', 'newRenewal', { cls: 'small', ic: 'plus' }));
+}
+
+/* ---------- Command Centre ---------- */
+function renderCommand() {
+  const name = state.profile.name, hr = new Date().getHours(), days = lastDays(7);
+  const focusByDay = days.map(d => focusMinutes(s => s.date === d));
+  const trainByDay = days.map(d => sum(state.workouts.filter(w => w.date === d), w => w.minutes));
+  const open = openProjects(), dueWeek = open.filter(p => p.due && daysBetween(today(), p.due) <= 7).length;
+  const habitsDone = state.habits.filter(h => h.history[today()]).length, hp = habitPct();
+  const renewals = dueSoonRenewals(7);
+  const blocksDone = state.blocks.filter(b => b.done).length, rhythm = percent(blocksDone, state.blocks.length);
+  const nm = nextMove();
+  let tag, title, desc, extra = '', side, playId = '';
+  if (nm?.kind === 'win') {
+    tag = `<span class="tag win">Must-win ${nm.index + 1} of ${state.wins.filter(Boolean).length}</span>`;
+    title = esc(nm.title);
+    desc = 'You chose this as one of today’s must-wins. Finish it before starting anything new.';
+    side = `<button class="round" data-action="toggleWin" data-id="${nm.index}" aria-label="Mark this must-win done" title="Mark done">${icon('check')}</button>`;
+  } else if (nm) {
+    const p = nm.project, wk = focusMinutes(s => s.projectId === p.id && inLastDays(s.date, 7));
+    tag = `<span class="tag">${[p.priority + ' priority', p.client, p.due ? dueText(p.due) : ''].filter(Boolean).map(esc).join(' · ')}</span>`;
+    title = `${esc(p.title)} — ${p.next ? esc(p.next) : 'set the next action'}`;
+    desc = p.blocker ? `Dependency: ${esc(p.blocker)}` : wk ? `${hours(wk)}h of focus on this project this week.` : 'Give it one uninterrupted session.';
+    extra = p.links.length ? `<div class="links mt-s">${linkPills(p.links, 3)}</div>` : '';
+    side = `<button class="round" data-action="openProject" data-id="${p.id}" aria-label="Open ${esc(p.title)}" title="Open project">${icon('arrow')}</button>`;
+    playId = p.id;
+  } else {
+    tag = '<span class="tag">Get started</span>'; title = 'One project. One clear next action.'; desc = 'Add a project or set today’s must-wins.';
+    side = `<button class="round" data-action="newProject" aria-label="New project" title="New project">${icon('plus')}</button>`;
+  }
+  /* Today: start from the block happening now, and keep finished ones visible so a misclick can be undone. */
+  const blocks = state.blocks.slice().sort((a, b) => toMin(a.time) - toMin(b.time)), n = nowMin();
+  let start = blocks.findIndex(b => toMin(b.time) + b.duration > n);
+  const dayOver = start < 0;
+  if (dayOver) start = Math.max(0, blocks.length - 5);
+  const shown = blocks.slice(start, start + 5), missed = dayOver ? 0 : blocks.slice(0, start).filter(b => !b.done).length;
+  const nextId = shown.find(b => toMin(b.time) > n)?.id;
+  const agendaRows = shown.map(b => { const now = toMin(b.time) <= n && n < toMin(b.time) + b.duration; return `<label class="agenda-line ${b.done ? 'done' : ''}"><time class="agenda-time">${esc(b.time)}</time><input class="agenda-check" type="checkbox" data-action="toggleBlock" data-id="${b.id}" ${b.done ? 'checked' : ''} aria-label="Complete ${esc(b.title)}"><span><strong>${esc(b.title)}</strong><span class="agenda-detail">${esc(b.detail)}</span></span>${now ? '<span class="pill good">Now</span>' : b.id === nextId ? '<span class="pill">Next</span>' : ''}</label>`; }).join('');
+  const agendaNote = dayOver ? '<p class="agenda-note">The schedule is behind you. Wind down.</p>' : missed ? `<p class="agenda-note">${plural(missed, 'earlier block')} still open · <button class="text-button" data-action="navigate" data-id="focus">Review</button></p>` : '';
+
+  return `<section class="hero" aria-labelledby="greeting"><div><p class="hero-date">${new Date().toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' })}</p><h1 id="greeting" tabindex="-1">Good ${hr < 12 ? 'morning' : hr < 18 ? 'afternoon' : 'evening'}${name ? `, ${esc(name)}` : ''}.</h1><p class="lead">Clarity in the chaos.</p></div><blockquote class="hero-quote">“Discipline creates the freedom you actually want.”<p>ONE MEANINGFUL MOVE AT A TIME</p></blockquote></section>
+  ${renewals.length ? `<div class="alert" role="note">${icon('alert')}<span>${renewals.slice(0, 2).map(r => { const d = daysBetween(today(), r.date); return `${esc(r.name)} ${d < 0 ? 'has lapsed' : d === 0 ? 'renews today' : 'renews in ' + plural(d, 'day')}`; }).join(' · ')}${renewals.length > 2 ? ` · +${renewals.length - 2} more` : ''}</span>${btn('Review', 'goRenewals', { cls: 'small' })}</div>` : ''}
+  <section class="metrics" aria-label="Your day at a glance">
+    <button class="metric" data-action="navigate" data-id="focus" aria-label="Focus: ${hours(focusByDay[6])} hours logged today. Open Focus"><span class="statlabel">Focus</span><span class="metric-number">${hours(focusByDay[6])}<small>h</small></span><span class="metric-foot">${focusByDay[6] ? 'Logged today' : 'No sessions yet today'}</span>${miniBars(focusByDay)}</button>
+    <button class="metric" data-action="navigate" data-id="projects" aria-label="${open.length} open projects, ${dueWeek} due this week. Open Projects"><span class="statlabel">Projects</span><span class="metric-number">${open.length}</span><span class="metric-foot">${dueWeek ? `${dueWeek} due this week` : `${openWaiting().length} waiting on others`}</span><span class="dots" aria-hidden="true">${open.slice().sort(projectOrder).slice(0, 4).map(p => `<i><b class="${p.status === 'Active' ? '' : 'off'}"></b><span></span></i>`).join('')}</span></button>
+    <button class="metric" data-action="navigate" data-id="performance" aria-label="Training: ${trainByDay[6]} minutes today. Open Performance"><span class="statlabel">Training</span><span class="metric-number">${trainByDay[6]}<small>min</small></span><span class="metric-foot">${trainByDay[6] ? 'Logged today' : 'Rest or not logged'}</span>${miniBars(trainByDay)}</button>
+    <button class="metric" data-action="navigate" data-id="rituals" aria-label="Habits: ${habitsDone} of ${state.habits.length} done today. Open Rituals"><span class="statlabel">Habits</span><span class="metric-number">${hp}<small>%</small></span><span class="metric-foot">${habitsDone}/${state.habits.length} today</span><svg class="ring" viewBox="0 0 70 70" aria-hidden="true"><circle cx="35" cy="35" r="29"/><circle class="value" cx="35" cy="35" r="29" stroke-dasharray="${(hp * 1.822).toFixed(1)} 182.2"/></svg></button>
+  </section>
+  <div class="command">
+    <section class="panel mission" aria-labelledby="next-move"><div class="panelhead"><h2 id="next-move"><span class="mission-icon">${icon('target')}</span>Your next move</h2>${side}</div><div class="mission-body">${tag}<h3 class="mission-title">${title}</h3><p class="mission-desc">${desc}</p>${extra}</div><div class="mission-bottom"><div class="flex1"><div class="progress-line"><span>Today’s rhythm</span><span>${rhythm}%</span></div>${bar(rhythm)}<p class="mission-meta">${icon('clock')}${plural(state.blocks.length - blocksDone, 'block')} remaining · ${hours(focusByDay[6])}h focused today</p></div><button class="play" data-action="focusOn" data-id="${esc(playId)}" aria-label="Start a focus session${playId ? ' on ' + esc(projectName(playId)) : ''}">${icon('play')}</button></div></section>
+    <section class="panel agenda" aria-labelledby="today-title"><div class="panelhead"><h2 id="today-title">Today</h2><button class="text-button" data-action="navigate" data-id="focus">Full routine</button></div><div class="agenda-list">${agendaRows || '<div class="empty">No routine blocks yet.</div>'}</div>${agendaNote}</section>
+  </div>
+  <div class="section-divider">The rest of your day</div>
+  <div class="secondary">
+    ${winsCard()}
+    ${waitingCard()}
+    ${panel('Quick capture', 'Clear your head. Keep your momentum.', captureBox('Write it down…') + `<div class="mt-s">${inboxRows(4)}</div>`, `<button class="pill" data-action="navigate" data-id="inbox">${state.inbox.length} in inbox</button>`)}
+    ${panel('Daily rituals', `${habitsDone}/${state.habits.length} done today`, habitsList(true), btn('View all', 'navigate', { cls: 'small quiet', id: 'rituals' }))}
+    ${editionCard()}
+  </div>`;
+}
+
+/* ---------- Projects ---------- */
+function projectCard(p) {
+  const total = state.checklist.length, done = state.checklist.filter(c => p.checks[c]).length;
+  const last = p.log.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+  const wk = focusMinutes(s => s.projectId === p.id && inLastDays(s.date, 7));
+  return `<article class="project"><div class="row between" style="align-items:flex-start"><div class="flex1"><p class="client">${esc(clientOf(p))}</p><h3>${esc(p.title)}</h3></div><span class="pill ${STATUS_TONE[p.status] || ''}">${esc(p.status)}</span></div>
+  <div class="next"><p class="eyebrow">Next action</p><p>${p.next ? esc(p.next) : '<span class="faint">Not set</span>'}</p></div>
+  ${p.blocker ? `<p class="blocker">${icon('flag')}${esc(p.blocker)}</p>` : ''}
+  <div class="meta-row">${p.due ? `<span class="pill ${dueClass(p.due)}">${dueText(p.due)}</span>` : ''}${total ? `<span class="pill ${done === total ? 'good' : ''}" title="Demo-day checklist">Demo ${done}/${total}</span>` : ''}${last ? `<span class="pill" title="${esc(last.note)}">Shipped${last.version ? ' ' + esc(last.version) : ''} ${ago(last.date)}</span>` : ''}${wk ? `<span class="pill">${hours(wk)}h this week</span>` : ''}</div>
+  ${p.links.length ? `<div class="links">${linkPills(p.links, 3)}</div>` : ''}
+  <div class="bottom"><span class="micro">${esc(p.priority)} priority</span><div class="row" style="gap:2px">${btn('Open', 'openProject', { cls: 'quiet small', id: p.id })}${btn('Edit', 'editProject', { cls: 'quiet small', id: p.id })}${btn('Archive', 'archiveProject', { cls: 'quiet small', id: p.id })}</div></div></article>`;
+}
+function renderProjects() {
+  const all = state.projects.filter(p => !p.archived);
+  const clients = [...new Set(all.map(clientOf))].sort((a, b) => (a === 'No client') - (b === 'No client') || a.localeCompare(b));
+  if (clientFilter !== 'all' && !clients.includes(clientFilter)) clientFilter = 'all';
+  const list = all.filter(p => clientFilter === 'all' || clientOf(p) === clientFilter).sort(projectOrder);
+  const byClient = {};
+  state.sessions.filter(s => inLastDays(s.date, 7)).forEach(s => { const p = projectById(s.projectId); const k = p ? clientOf(p) : 'General focus'; byClient[k] = (byClient[k] || 0) + s.minutes; });
+  const maxC = Math.max(1, ...Object.values(byClient));
+  const weekBody = Object.keys(byClient).length ? `<div class="barlist">${Object.entries(byClient).sort((a, b) => b[1] - a[1]).map(([k, m]) => `<div><div class="row between"><span>${esc(k)}</span><span class="faint">${hours(m)}h</span></div>${bar(m / maxC * 100)}</div>`).join('')}</div>` : '<div class="empty">Start a focus session on a project to see where your week goes.</div>';
+  const due = all.filter(p => p.due && p.status !== 'Completed').sort((a, b) => a.due.localeCompare(b.due)).slice(0, 6);
+  const dueBody = due.length ? due.map(p => `<div class="listrow"><div class="flex1"><div class="itemname">${esc(p.title)}</div><div class="itemdetail">${esc(clientOf(p))}</div></div><span class="pill ${dueClass(p.due)}">${dueText(p.due)}</span></div>`).join('') : '<div class="empty">No deadlines yet. Add a due date when you edit a project.</div>';
+  return head('Execution / Clients & builds', 'Projects in motion.', 'One clear next action per project, grouped by who it’s for.', btn('Archive', 'archiveModal', { ic: 'archive' }) + btn('New project', 'newProject', { cls: 'primary', ic: 'plus' }))
+    + `<div class="chips" role="group" aria-label="Filter by client">${['all', ...clients].map(c => `<button type="button" data-action="clientFilter" data-id="${esc(c)}" aria-pressed="${clientFilter === c}">${c === 'all' ? 'All clients' : esc(c)}</button>`).join('')}</div>`
+    + (list.length ? `<div class="projectcards">${list.map(projectCard).join('')}</div>` : '<div class="panel empty">No projects here. Add one to begin.</div>')
+    + `<div class="grid cols2 mt">${panel('Focus this week', 'Hours logged by client, last 7 days', weekBody)}${panel('Coming up', 'Nearest deadlines', dueBody)}</div>`
+    + `<div id="renewals" class="mt">${renewalsPanel()}</div>`;
+}
+
+/* ---------- Follow-ups ---------- */
+function renderFollowups() {
+  const open = openWaiting(), done = state.waiting.filter(w => w.done).sort((a, b) => (b.resolved || '').localeCompare(a.resolved || '')).slice(0, 10);
+  return head('Momentum / Follow-ups', 'Waiting on others.', 'Everything stuck on someone else, and how long it’s been. Amber means chase it.', btn('Add follow-up', 'newWaiting', { cls: 'primary', ic: 'plus' }))
+    + `<div class="grid cols2">${panel('Open', open.length ? plural(open.length, 'item') : 'All clear', open.map(w => waitRow(w, true)).join('') || '<div class="empty">Nobody owes you anything right now.</div>')}${panel('Recently resolved', 'Last 10', done.map(w => `<div class="listrow done"><div class="flex1"><div class="itemname">${esc(w.who)}${w.what ? ' — ' + esc(w.what) : ''}</div><div class="itemdetail">${projectName(w.projectId) ? esc(projectName(w.projectId)) + ' · ' : ''}${w.resolved ? 'resolved ' + ago(w.resolved) : 'resolved'}</div></div>${btn('Reopen', 'reopenWaiting', { cls: 'quiet small', id: w.id })}</div>`).join('') || '<div class="empty">Resolved follow-ups land here.</div>')}</div>`;
+}
+
+/* ---------- Focus ---------- */
+function renderFocus() {
+  const t = state.timer, p = (1 - t.seconds / (t.length || 1)) * 100, elapsed = t.length - t.seconds;
+  const days = lastDays(7), byDay = days.map(d => focusMinutes(s => s.date === d)), max = Math.max(60, ...byDay);
+  const todays = state.sessions.filter(s => s.date === today());
+  const timer = `<div class="timer"><p class="kicker">${t.mode === 'focus' ? 'Deep focus' : 'Recovery break'}</p>${t.mode === 'focus' ? `<label class="sr-only" for="timerProject">Project for this session</label><select id="timerProject" data-change="timerProject"${t.running ? ' disabled' : ''}>${projectOptions(t.projectId, 'No project — general focus')}</select>` : ''}<div class="timerclock" id="timerclock">${clockText(t.seconds)}</div>${bar(p, 'timerbar')}<div class="timerrow">${btn(t.running ? 'Pause' : elapsed > 0 ? 'Resume' : 'Start', 'timerToggle', { cls: 'primary', ic: t.running ? 'pause' : 'play' })}${t.mode === 'focus' && elapsed >= 60 ? btn('Finish & log', 'timerFinish', { ic: 'check' }) : ''}${btn('Reset', 'timerReset', { ic: 'reset' })}${btn(t.mode === 'focus' ? 'Switch to break' : 'Switch to focus', 'timerSwitch')}</div></div>`;
+  const log = `<div class="barlist">${days.map((d, i) => `<div><div class="row between"><span>${i === 6 ? 'Today' : parseDay(d).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric' })}</span><span class="faint">${hours(byDay[i])}h</span></div>${bar(byDay[i] / max * 100)}</div>`).join('')}</div>${todays.length ? `<hr class="divider"><p class="eyebrow">Today’s sessions</p>${todays.map(s => `<div class="listrow"><span class="flex1">${esc(projectName(s.projectId) || 'General focus')}</span><span class="faint">${s.minutes} min</span></div>`).join('')}` : ''}`;
+  return head('Focus / Deep work', 'Protect your attention.', 'Pick a project, run the timer, and every finished session is logged against it.', btn('Breathing reset', 'resetModal', { ic: 'reset' }) + btn('Routine block', 'newBlock', { cls: 'primary', ic: 'plus' }))
+    + `<div class="grid cols2"><div class="span2">${panel('Deep-work timer', `Focus ${state.settings.focus} min · break ${state.settings.break} min (change in Settings). A session that ends while FUMO is closed is logged when you reopen it.`, timer)}</div>${panel('Focus log', 'Hours logged, last 7 days', log)}${panel('Daily rhythm', 'Time blocks reset each morning', blocklist())}</div>`;
+}
+
+/* ---------- Performance ---------- */
+function skillProgress() {
+  const map = {};
+  state.workouts.slice().sort((a, b) => a.date.localeCompare(b.date)).forEach(w => w.skills.forEach(s => { const k = s.name.toLowerCase(); (map[k] = map[k] || { name: s.name, unit: s.unit, rows: [] }).rows.push({ date: w.date, sets: s.sets, reps: s.reps }); }));
+  const skills = Object.values(map);
+  if (!skills.length) return '<div class="empty">Add skills when you log a workout, e.g. “Pull-ups 3x8” or “Handstand hold 4x20s”.</div>';
+  return skills.map(s => {
+    const last = s.rows[s.rows.length - 1], best = s.rows.reduce((m, r) => r.reps > m.reps ? r : m, s.rows[0]);
+    const trend = s.rows.length > 1 ? last.sets * last.reps - s.rows[s.rows.length - 2].sets * s.rows[s.rows.length - 2].reps : 0;
+    return `<div class="listrow"><div class="flex1"><div class="itemname">${esc(s.name)}</div><div class="itemdetail">Last ${last.sets}×${last.reps}${s.unit} · best set ${best.reps}${s.unit} · ${plural(s.rows.length, 'session')}${trend > 0 ? ' · up from last time' : trend < 0 ? ' · down from last time' : ''}</div></div>${miniBars(s.rows.slice(-6).map(r => r.sets * r.reps), 'static')}</div>`;
+  }).join('');
+}
+function renderPerformance() {
+  const week = state.workouts.filter(w => inLastDays(w.date, 7)), history = state.workouts.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 30);
+  return head('Body / Performance', 'Train. Recover. Repeat.', 'Log sessions and the skills inside them, so progress shows up as numbers.', btn('Log workout', 'newWorkout', { cls: 'primary', ic: 'plus' }))
+    + `<div class="grid cols3 mb">${stat('Sessions · 7 days', week.length, 'Training frequency')}${stat('Minutes · 7 days', sum(week, w => w.minutes), 'Logged activity')}${stat('Total sessions', state.workouts.length, 'Personal record')}</div>`
+    + `<div class="grid cols2">${panel('Skill progress', 'Volume per session (sets × reps), last 6', skillProgress())}${panel('Workout history', 'Most recent first', history.map(w => `<div class="listrow"><div class="flex1"><div class="itemname">${esc(w.title)}</div><div class="itemdetail">${fmtDay(w.date)} · ${esc(w.type)} · ${w.minutes} min${w.skills.length ? ' · ' + w.skills.map(s => `${esc(s.name)} ${s.sets}×${s.reps}${s.unit}`).join(', ') : ''}${w.notes ? ' · ' + esc(w.notes) : ''}</div></div>${btn('', 'deleteWorkout', { cls: 'quiet small', id: w.id, ic: 'x', label: 'Delete workout' })}</div>`).join('') || '<div class="empty">Log your first training session.</div>')}</div>`;
+}
+
+/* ---------- Rituals ---------- */
+function renderRituals() {
+  const hp = habitPct();
+  return head('Consistency / Recovery', 'Small rituals. Long horizons.', 'Track completion honestly. A rest day protects your streak without faking the number.', btn('Evening shutdown', 'shutdownModal', { ic: 'power' }) + btn('New habit', 'newHabit', { cls: 'primary', ic: 'plus' }))
+    + `<div class="grid cols2">${panel('Daily adherence', `${hp}% of habits done today`, bar(hp) + `<div class="mt">${habitsList(false)}</div>`)}<div class="stack">${winsCard()}${panel('End-of-day ritual', state.shutdownDate === today() ? 'Completed today' : 'Not completed yet', `<p class="muted">Review the day, set tomorrow’s must-wins, log what shipped and see who to chase.</p><div class="mt">${btn('Begin shutdown', 'shutdownModal', { cls: 'primary', ic: 'power' })}</div>`)}</div></div>`;
+}
+
+/* ---------- Inbox and Settings ---------- */
+function renderInbox() {
+  return head('Capture / Clear your head', 'Inbox.', 'Give loose thoughts a home, then send each one to a project.', btn('New note', 'newNote', { cls: 'primary', ic: 'plus' }))
+    + `<section class="panel">${captureBox('Write it down and move on…')}<div class="mt">${inboxRows()}</div></section>`;
+}
+function renderSettings() {
+  return head('Personal / Control', 'Make it yours.', state.sync.repo ? 'Your records sync across your devices through your private GitHub repository.' : 'Everything lives in this browser. Turn on sync or back up regularly — clearing browser data erases it.')
+    + `<div class="grid cols2">
+    ${syncPanel()}
+    ${panel('Profile', 'Used in your greeting', `<div class="fields">${field('profileNameInput', 'Your name', state.profile.name, 'text', 'maxlength="40" autocomplete="given-name"')}</div><div class="mt">${btn('Save name', 'saveProfile', { cls: 'primary' })}</div>`)}
+    ${panel('Focus preferences', 'Default session lengths', `<div class="fields field2">${field('focusDuration', 'Focus minutes', state.settings.focus, 'number', 'min="1" max="240"')}${field('breakDuration', 'Break minutes', state.settings.break, 'number', 'min="1" max="120"')}</div><div class="mt">${btn('Save durations', 'saveSettings', { cls: 'primary' })}</div>`)}
+    ${panel('Demo-day checklist', 'Shown on every project — one item per line', `<div class="fields">${field('checklistInput', 'Checklist items', state.checklist.join('\n'), 'textarea', 'rows="7"')}</div><div class="mt">${btn('Save checklist', 'saveChecklist', { cls: 'primary' })}</div>`)}
+    ${panel('Your data', 'Backup and restore', `<p class="muted">Export a JSON backup or restore one. Import replaces everything here. Backups from V0.1 and V0.2 work.</p><div class="actions mt">${btn('Export backup', 'export', { cls: 'primary', ic: 'download' })}${btn('Import backup', 'import', { ic: 'upload' })}</div>`)}
+    ${panel('Reset FUMO', 'Start over', `<p class="muted">Erase this browser’s FUMO data and load the starter projects. Export a backup first.</p><div class="mt">${btn('Reset all data', 'factoryReset', { cls: 'danger' })}</div>`)}
+    </div>`;
+}
+function crashPanel(err) {
+  return `<section class="panel crash"><p class="kicker">Something broke</p><h1 tabindex="-1">This page couldn’t be shown.</h1><p class="lead">Your data is still saved. Export a backup to be safe, then try another page.</p><p class="hint mt-s">${esc(err?.message || err)}</p><div class="actions mt">${btn('Export backup', 'export', { cls: 'primary', ic: 'download' })}${btn('Go to Command Centre', 'navigate', { id: 'command' })}</div></section>`;
+}
+const PAGES = { command: renderCommand, focus: renderFocus, projects: renderProjects, followups: renderFollowups, performance: renderPerformance, rituals: renderRituals, edition: renderEdition, inbox: renderInbox, settings: renderSettings };
+
+/* ---------- The Daily Edition: data ---------- */
+const WEIGHT_FACTOR = [0, 0.6, 1, 1.5], WEIGHT_LABELS = ['Off', 'Low', 'Normal', 'High'];
+const safeHttp = u => { const x = safeUrl(u); return /^https?:/.test(x) ? x : ''; };
+const isoOr = v => { const t = Date.parse(v); return Number.isFinite(t) ? new Date(t).toISOString() : ''; };
+/* Everything that arrives from the headline service is checked field by field before it is shown. */
+function normalizeEdition(e) {
+  if (!e || typeof e !== 'object' || e.version !== 1 || !Array.isArray(e.stories)) throw Error('That address didn’t return a FUMO edition.');
+  const desks = records(e.desks).filter(d => typeof d.id === 'string' && /^[\w-]{1,30}$/.test(d.id)).slice(0, 20).map(d => ({ id: d.id, name: str(d.name, 60) || d.id, coverage: str(d.coverage, 300) }));
+  return {
+    generated: isoOr(e.generated) || new Date().toISOString(), refreshMinutes: int(e.refreshMinutes, 30, 5, 1440),
+    desks: desks.length ? desks : DESKS_DEF,
+    sources: records(e.sources).slice(0, 300).map(s => ({ name: str(s.name, 80), desk: str(s.desk, 30), ok: !!s.ok, items: int(s.items, 0, 0, 1e4), error: str(s.error, 160) })),
+    stories: records(e.stories).slice(0, 2000).map(s => ({ id: typeof s.id === 'string' && /^[\w-]{1,40}$/.test(s.id) ? s.id : '', desk: str(s.desk, 30), title: str(s.title, 220).trim(), url: safeHttp(str(s.url, 1500)), source: str(s.source, 80) || 'Source', published: isoOr(s.published) || isoOr(s.firstSeen), firstSeen: isoOr(s.firstSeen) || isoOr(s.published), summary: str(s.summary, 320).trim(), image: safeHttp(str(s.image, 1500)), weight: num(s.weight, 1, 0.1, 5) })).filter(s => s.id && s.title && s.url && s.published)
+  };
+}
+function loadEditionCache() {
+  try { const c = JSON.parse(localStorage.getItem(EDITION_KEY) || 'null'); if (c && c.data) return { fetchedAt: num(c.fetchedAt, 0, 0, 1e15), data: normalizeEdition(c.data), error: '' }; } catch (e) {}
+  return null;
+}
+let editionCache = loadEditionCache(), editionLoading = false, editionLastTry = 0, editionPreview = false, SAMPLE = null;
+let editionView = 'front', editionPrevVisit = '', libraryQuery = '';
+
+function sampleEdition() {
+  const now = Date.now(), at = h => new Date(now - h * 36e5).toISOString();
+  const rows = [
+    ['tech', 'Example: smaller AI models are closing the gap on the giants', 'A placeholder lead, showing how a story from The Frontier sits at the top of your front page.', 0.6],
+    ['cars', 'Example: a lightweight mid-engine coupé sets the tone for next year’s track cars', 'Placeholder text where the publisher’s own short summary would appear.', 1.2],
+    ['wall', 'Example: markets weigh a quieter week of central-bank decisions', 'Placeholder text for a Wall Street story.', 1.5],
+    ['tech', 'Example: voice agents move from demos to daily tools', '', 2.4],
+    ['time', 'Example: independent makers bring back the hand-finished dress watch', '', 3],
+    ['fashion', 'Example: workwear fabrics take over the season’s capsule collections', '', 3.5],
+    ['private', 'Example: boutique hotels become the new founder side project', '', 4],
+    ['after', 'Example: club nights trade lasers for serious sound systems', '', 5],
+    ['cars', 'Example: inside a family tuning shop keeping 90s Japanese icons on the road', '', 6],
+    ['wall', 'Example: why mid-cap tech is outpacing the index this quarter', '', 7],
+    ['time', 'Example: auction preview — steel sports watches lead the catalogue', '', 8],
+    ['fashion', 'Example: the quiet return of the low-profile sneaker', '', 9],
+    ['after', 'Example: festival line-ups worth travelling for next summer', '', 10],
+    ['private', 'Example: why small studios are winning enterprise design work', '', 11]
+  ];
+  return { sample: true, generated: at(0.2), refreshMinutes: 30, desks: DESKS_DEF, sources: [{ name: 'Examples', desk: '', ok: true, items: rows.length, error: '' }], stories: rows.map(([desk, title, summary, h], i) => ({ id: 'example-' + i, desk, title, url: '', source: 'Example', published: at(h), firstSeen: at(h), summary, image: '', weight: 1 })) };
+}
+function editionData() {
+  if (editionCache?.data) return editionCache.data;
+  if (editionPreview) return (SAMPLE = SAMPLE || sampleEdition());
+  return null;
+}
+/* The read-only key lives in this browser only, outside FUMO's records, so it never ends up in a backup. */
+const getEditionKey = () => { try { return localStorage.getItem(EDITION_SECRET) || ''; } catch (e) { return ''; } };
+const setEditionKey = v => { try { v ? localStorage.setItem(EDITION_SECRET, v) : localStorage.removeItem(EDITION_SECRET); } catch (e) {} };
+const parseRepo = input => { const m = String(input || '').trim().match(/^(?:https?:\/\/(?:www\.)?github\.com\/)?([A-Za-z0-9-]{1,39})\/([\w.-]{1,100}?)(?:\.git)?\/?$/); return m ? `${m[1]}/${m[2]}` : ''; };
+const editionRepo = () => state.editionPrefs.feedUrl.startsWith('github:') ? state.editionPrefs.feedUrl.slice(7) : '';
+function editionRequest() {
+  const repo = editionRepo(), url = state.editionPrefs.feedUrl;
+  if (!repo) return { url: `${url}${url.includes('?') ? '&' : '?'}t=${Math.floor(Date.now() / 6e4)}`, headers: {} };
+  const key = getEditionKey();
+  return { repo, url: `https://api.github.com/repos/${repo}/contents/edition.json?ref=edition`, headers: { Accept: 'application/vnd.github.raw+json', 'X-GitHub-Api-Version': '2022-11-28', ...(key ? { Authorization: `Bearer ${key}` } : {}) } };
+}
+function editionHttpError(status, repo) {
+  if (!repo) return `The headline service answered ${status}. Check the address in edition settings.`;
+  if (status === 401) return 'GitHub refused your access key — it may have expired. Create a new read-only key and paste it in edition settings.';
+  if (status === 403) return 'GitHub refused access (403). Check that the key can read this repository, or try again in a few minutes.';
+  if (status === 404) return `Couldn’t find the edition in ${repo}. Check the repository name, that your key has access to it, and that the workflow has run once.`;
+  return `GitHub answered ${status}. Try again in a few minutes.`;
+}
+async function refreshEdition(force) {
+  const url = state.editionPrefs.feedUrl;
+  if (!url || editionLoading) return;
+  if (!force && editionCache?.data && Date.now() - editionCache.fetchedAt < 15 * 6e4) return;
+  if (!force && Date.now() - editionLastTry < 5 * 6e4) return;
+  editionLoading = true; editionLastTry = Date.now();
+  if (page === 'edition' && !modal) render();
+  try {
+    const req = editionRequest();
+    if (req.repo && !getEditionKey()) throw Error('Add your read-only access key in edition settings.');
+    const res = await fetch(req.url, { cache: 'no-store', headers: req.headers });
+    if (!res.ok) throw Error(editionHttpError(res.status, req.repo));
+    const data = normalizeEdition(await res.json());
+    editionCache = { fetchedAt: Date.now(), data, error: '' };
+    try { localStorage.setItem(EDITION_KEY, JSON.stringify({ fetchedAt: editionCache.fetchedAt, data })); } catch (e) {}
+  } catch (e) {
+    const msg = /fetch|network|load failed/i.test(e.message) ? 'Couldn’t reach your headline service. You may be offline, or the address may be wrong.' : e.message;
+    editionCache = { fetchedAt: editionCache?.fetchedAt || 0, data: editionCache?.data || null, error: msg };
+  }
+  editionLoading = false;
+  if (!modal && (page === 'edition' || page === 'command')) render();
+}
+
+/* ---------- Ranking ---------- */
+const deskWeight = id => state.editionPrefs.weights[id] ?? 2;
+const deskList = ed => (ed?.desks?.length ? ed.desks : DESKS_DEF);
+/* Your seven desks plus any extra ones the headline service adds (e.g. The Arcade). */
+const allDesks = () => [...DESKS_DEF, ...deskList(editionData()).filter(d => !DESK_IDS.includes(d.id))];
+const storyAge = s => Math.max(0, (Date.now() - Date.parse(s.published)) / 36e5);
+const scoreStory = s => WEIGHT_FACTOR[deskWeight(s.desk)] * (0.8 + 0.2 * s.weight) * Math.pow(0.5, storyAge(s) / 18);
+const rankedStories = ed => ed.stories.filter(s => deskWeight(s.desk) > 0).sort((a, b) => scoreStory(b) - scoreStory(a));
+/* A finite front page: one lead, five top stories (no more than two per desk), then three per desk. */
+function frontPage(ed) {
+  const list = rankedStories(ed), used = new Set();
+  const hero = (state.editionPrefs.images && list.slice(0, 6).find(s => s.image)) || list[0];
+  if (hero) used.add(hero.id);
+  const top = [], perDesk = {};
+  for (const s of list) {
+    if (top.length >= 5) break;
+    const c = perDesk[s.desk] || 0;
+    if (used.has(s.id) || c >= 2) continue;
+    perDesk[s.desk] = c + 1; top.push(s); used.add(s.id);
+  }
+  const desks = deskList(ed).filter(d => deskWeight(d.id) > 0).sort((a, b) => deskWeight(b.id) - deskWeight(a.id))
+    .map(d => ({ desk: d, stories: list.filter(s => s.desk === d.id && !used.has(s.id)).slice(0, 3) })).filter(x => x.stories.length);
+  return { hero, top, desks };
+}
+function findStory(id) {
+  const s = editionData()?.stories.find(x => x.id === id);
+  if (s) return s;
+  const r = state.reading.find(x => x.storyId === id);
+  if (r) return { id, desk: r.desk, title: r.title, url: r.url, source: r.source || hostOf(r.url), published: isoOr(r.published) || new Date(parseDay(r.added)).toISOString(), firstSeen: '', summary: r.summary, image: '', weight: 1 };
+  const h = state.editionRead[id];
+  return h ? { id, desk: h.d, title: h.t, url: h.u, source: h.s, published: new Date(parseDay(h.at)).toISOString(), firstSeen: '', summary: '', image: '', weight: 1 } : null;
+}
+function markRead(s) {
+  if (state.editionRead[s.id]) return;
+  state.editionRead[s.id] = { t: s.title, u: s.url, s: s.source, d: s.desk, at: today() };
+  const keys = Object.keys(state.editionRead);
+  if (keys.length > 400) keys.slice(0, keys.length - 400).forEach(k => delete state.editionRead[k]);
+}
+
+/* ---------- The Daily Edition: markup ---------- */
+function timeAgo(iso) {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return '';
+  const m = Math.round((Date.now() - t) / 6e4);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  return h < 24 ? `${h}h ago` : new Date(t).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' });
+}
+const clockOf = iso => new Date(iso).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+const editionLabel = iso => { const h = new Date(iso).getHours(); return h < 12 ? 'Morning Edition' : h < 17 ? 'Midday Edition' : 'Evening Edition'; };
+const storyCount = n => `${n} ${n === 1 ? 'story' : 'stories'}`;
+function byline(s) {
+  const isNew = editionPrevVisit && s.firstSeen > editionPrevVisit && !state.editionRead[s.id];
+  return `<p class="byline"><span>${esc(s.source)}</span><span aria-hidden="true">·</span><time datetime="${esc(s.published)}">${timeAgo(s.published)}</time>${isNew ? '<span class="pill good">New</span>' : ''}${state.editionRead[s.id] ? '<span class="read-mark">Read</span>' : ''}</p>`;
+}
+function storyCard(s, kind) {
+  const big = kind === 'splash' || kind === 'deskLead';
+  const img = state.editionPrefs.images && s.image && (big || kind === 'thumb');
+  const H = big ? 'h2' : 'h3';
+  return `<article class="story-card ${kind}${state.editionRead[s.id] ? ' is-read' : ''}">${img ? `<div class="figure"><img src="${esc(s.image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>` : ''}${kind === 'splash' || kind === 'top' ? `<p class="eyebrow">${esc(deskName(s.desk))}</p>` : ''}<${H} class="story-title"><button type="button" class="stretch" data-action="openStory" data-id="${esc(s.id)}">${esc(s.title)}</button></${H}>${big && s.summary ? `<p class="story-dek">${esc(s.summary)}</p>` : ''}${byline(s)}</article>`;
+}
+function dateline(ed) {
+  const date = new Date().toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  if (!ed) return `<p class="dateline"><span>${date}</span></p>`;
+  if (ed.sample) return `<p class="dateline"><span>${date}</span><span>Example edition</span></p>`;
+  const ok = ed.sources.filter(s => s.ok).length, total = ed.sources.length;
+  return `<p class="dateline"><span>${date}</span><span>${editionLabel(ed.generated)}</span><span>${editionLoading ? 'Refreshing…' : `Refreshed ${clockOf(ed.generated)}`}</span><span>${storyCount(ed.stories.length)}</span>${total ? `<button type="button" data-action="editionSources" class="${ok < total ? 'warn' : ''}">${ok} of ${total} sources</button>` : ''}</p>`;
+}
+function deskbar(ed) {
+  const items = [['front', 'Front page'], ...deskList(ed).map(d => [d.id, d.name]), ['library', 'Library']];
+  return `<nav class="deskbar" aria-label="Edition sections">${items.map(([k, l]) => `<button type="button" data-action="editionView" data-id="${esc(k)}"${editionView === k ? ' aria-current="page"' : ''}>${esc(l)}</button>`).join('')}</nav>`;
+}
+function editionNotice(ed) {
+  if (ed.sample) return `<div class="notice" role="note">${icon('alert')}<span><strong>Example edition.</strong> These are made-up placeholders, not news. Connect your headline service for live headlines.</span>${btn('Connect', 'editionSettings', { cls: 'small' })}${btn('Hide examples', 'previewEdition', { cls: 'small quiet' })}</div>`;
+  if (editionCache?.error) return `<div class="notice" role="note">${icon('alert')}<span>Showing your saved copy from ${timeAgo(ed.generated)}. ${esc(editionCache.error)}</span>${btn('Try again', 'refreshEdition', { cls: 'small', ic: 'reset' })}</div>`;
+  const age = (Date.now() - Date.parse(ed.generated)) / 36e5;
+  if (age > 3) return `<div class="notice" role="note">${icon('alert')}<span>This edition is ${Math.round(age)} hours old. Your headline service may have paused — its status page will say why.</span>${btn('Refresh', 'refreshEdition', { cls: 'small', ic: 'reset' })}</div>`;
+  return '';
+}
+function editionSetup() {
+  if (state.editionPrefs.feedUrl) {
+    const err = editionCache?.error;
+    return `<div class="panel ${err ? 'crash' : ''}"><h2>${editionLoading ? 'Fetching your edition…' : err ? 'Couldn’t load your edition' : 'Waiting for the first edition'}</h2><p class="muted mt-s">${err ? esc(err) : 'Your headline service is connected. The first edition appears once its workflow has run.'}</p><div class="actions mt">${btn('Try again', 'refreshEdition', { cls: 'primary', ic: 'reset' })}${btn('Edition settings', 'editionSettings', { ic: 'settings' })}</div></div>`;
+  }
+  return `<div class="panel setup"><p class="kicker">Set up live headlines</p><h2>Three steps, about two minutes</h2><ol class="steps"><li>Your headline service runs in your private GitHub repository <strong>fumo-edition</strong>.</li><li>Create a read-only access key for it (the service README shows each click).</li><li>Paste <code>your-name/fumo-edition</code> and the key into edition settings.</li></ol><p class="hint">The service folder’s README walks through each click.</p><div class="actions mt">${btn('Connect headline service', 'editionSettings', { cls: 'primary', ic: 'link' })}${btn(editionPreview ? 'Hide examples' : 'Preview with example stories', 'previewEdition', { ic: 'edition' })}</div></div>`;
+}
+function renderFront(ed) {
+  const { hero, top, desks } = frontPage(ed);
+  if (!hero) return '<div class="panel empty">No stories in your enabled desks right now. Turn desks back on in edition settings.</div>';
+  return `<section class="front" aria-label="Front page"><div class="front-lead">${storyCard(hero, 'splash')}</div><div class="front-top"><p class="section-label">Top stories</p>${top.map(s => storyCard(s, 'top')).join('')}</div></section>
+  <section class="desks-grid" aria-label="Across the desks">${desks.map(({ desk: d, stories }) => `<div class="desk-col"><h2 class="desk-name"><button type="button" class="text-button" data-action="editionView" data-id="${esc(d.id)}">${esc(d.name)}</button></h2>${stories.map((s, i) => storyCard(s, i === 0 ? 'thumb' : 'brief')).join('')}</div>`).join('')}</section>
+  <p class="end-note">That’s the edition.${ed.sample ? '' : ` A fresh one is collected every ${ed.refreshMinutes} minutes.`}</p>`;
+}
+function renderDesk(ed, id) {
+  const d = deskList(ed).find(x => x.id === id) || { id, name: deskName(id), coverage: '' };
+  const list = ed.stories.filter(s => s.desk === id).sort((a, b) => Date.parse(b.published) - Date.parse(a.published));
+  const lead = (state.editionPrefs.images && list.slice(0, 4).find(s => s.image)) || list[0];
+  const n = DESK_IDS.indexOf(id);
+  return `<section class="desk-head"><p class="eyebrow">${n >= 0 ? `Desk ${pad(n + 1)}` : 'Desk'}${deskWeight(id) === 0 ? ' · hidden from your front page' : ''}</p><h2 class="desk-title">${esc(d.name)}</h2>${d.coverage ? `<p class="lead">${esc(d.coverage)}</p>` : ''}</section>`
+    + (lead ? `<div class="desk-lead">${storyCard(lead, 'deskLead')}</div><div class="desk-list">${list.filter(s => s !== lead).slice(0, 30).map(s => storyCard(s, 'brief')).join('')}</div>` : '<div class="panel empty">Nothing on this desk right now.</div>');
+}
+function libraryResults() {
+  const q = libraryQuery.toLowerCase().trim(), match = (...parts) => !q || parts.join(' ').toLowerCase().includes(q);
+  const saved = state.reading.slice().reverse().filter(r => match(r.title, r.source, r.url, deskName(r.desk), r.summary));
+  const history = Object.entries(state.editionRead).reverse().filter(([, h]) => match(h.t, h.s, deskName(h.d))).slice(0, 80);
+  const current = q ? (editionData()?.stories || []).filter(s => match(s.title, s.source, s.summary, deskName(s.desk))).slice(0, 20) : [];
+  const savedRows = saved.map(r => `<div class="listrow ${r.read ? 'is-read' : ''}"><div class="flex1">${r.storyId ? `<button type="button" class="headline-link" data-action="openStory" data-id="${esc(r.storyId)}">${esc(r.title || hostOf(r.url))}</button>` : `<a class="itemname" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer" data-action="openReading" data-id="${r.id}">${esc(r.title || hostOf(r.url))}</a>`}<div class="itemdetail">${esc(deskName(r.desk))} · ${esc(r.source || hostOf(r.url))} · saved ${ago(r.added)}</div></div>${btn('', 'toggleRead', { cls: 'quiet small', id: r.id, ic: 'check', label: r.read ? 'Mark unread' : 'Mark read' })}${btn('', 'deleteReading', { cls: 'quiet small', id: r.id, ic: 'x', label: 'Remove from library' })}</div>`).join('');
+  const histRows = history.map(([k, h]) => `<div class="listrow is-read"><div class="flex1">${h.u ? `<a class="itemname" href="${esc(h.u)}" target="_blank" rel="noopener noreferrer">${esc(h.t)}</a>` : `<span class="itemname">${esc(h.t)}</span>`}<div class="itemdetail">${esc(deskName(h.d))} · ${esc(h.s)} · read ${ago(h.at)}</div></div>${btn('', 'forgetRead', { cls: 'quiet small', id: k, ic: 'x', label: 'Remove from history' })}</div>`).join('');
+  return `<div class="grid cols2">${panel('Saved', q ? `${saved.length} matching` : plural(saved.length, 'item'), savedRows || `<div class="empty">${q ? 'No saved items match.' : 'Save stories from the article view, or add any link.'}</div>`)}${panel('Reading history', q ? `${history.length} matching` : 'Stories you’ve opened', histRows || `<div class="empty">${q ? 'Nothing you’ve read matches.' : 'Stories you open appear here.'}</div>`)}</div>${q ? `<div class="mt">${panel('In the current edition', storyCount(current.length), current.map(s => storyCard(s, 'brief')).join('') || '<div class="empty">No current headlines match.</div>')}</div>` : ''}`;
+}
+function renderLibrary() {
+  return `<section class="desk-head"><p class="eyebrow">Reading library</p><h2 class="desk-title">Library</h2><p class="lead">Your saved stories and links, what you’ve read, and a search across the headlines you’ve been shown.</p></section>
+  <div class="row wrap mb"><label class="sr-only" for="libSearch">Search your library and current headlines</label><input class="input flex1" id="libSearch" type="search" placeholder="Search saved stories, history and current headlines…" value="${esc(libraryQuery)}" autocomplete="off" style="min-width:220px">${btn('Save a link', 'newReading', { ic: 'plus' })}</div>
+  <div id="libResults">${libraryResults()}</div>`;
+}
+function renderEdition() {
+  const ed = editionData(), prefs = state.editionPrefs;
+  if (!['front', 'library'].includes(editionView) && !deskList(ed).some(d => d.id === editionView)) editionView = 'front';
+  const body = editionView === 'library' ? renderLibrary() : !ed ? editionSetup() : editionNotice(ed) + (editionView === 'front' ? renderFront(ed) : renderDesk(ed, editionView));
+  return `<div class="edition ${prefs.style === 'porcelain' ? 'porcelain' : ''}"><div class="edition-tools"><span class="eyebrow">FUMO Intelligence<span class="hide-phone"> · Personal edition</span></span><div class="row" style="gap:2px">${prefs.feedUrl ? `<button type="button" class="icon-button" data-action="refreshEdition" aria-label="Refresh the edition" title="Refresh">${icon('reset')}</button>` : ''}<button type="button" class="icon-button" data-action="editionSettings" aria-label="Edition settings" title="Edition settings">${icon('settings')}</button></div></div><header class="masthead"><h1 tabindex="-1">The Daily Edition</h1>${dateline(ed)}</header>${deskbar(ed)}${body}</div>`;
+}
+/* Compact preview for the Command Centre. */
+function editionCard() {
+  const ed = editionData();
+  const head = `<div class="row between"><span class="eyebrow">FUMO Intelligence${ed && !ed.sample ? ' · ' + editionLabel(ed.generated) : ''}</span><span class="micro">${ed ? (ed.sample ? 'Example stories' : `Refreshed ${timeAgo(ed.generated)}`) : 'Not connected yet'}</span></div>`;
+  if (!ed) return `<section class="panel paper span2">${head}<h2 class="edition-title">The Daily <i>Edition.</i></h2><p class="micro">A finite briefing across your seven desks — motoring, markets, watches, AI, fashion, nightlife and business.</p><div class="actions mt">${btn('Set up headlines', 'editionSettings', { cls: 'small', ic: 'link' })}${btn('Open edition', 'navigate', { cls: 'small', id: 'edition', ic: 'arrow' })}</div></section>`;
+  const { hero, top } = frontPage(ed);
+  return `<section class="panel paper span2 edition-preview">${head}<div class="preview-grid"><div>${hero ? `<p class="eyebrow mt-s">${esc(deskName(hero.desk))}</p><h2 class="preview-lead"><button type="button" class="stretch-text" data-action="openStory" data-id="${esc(hero.id)}">${esc(hero.title)}</button></h2><p class="micro">${esc(hero.source)} · ${timeAgo(hero.published)}</p>` : '<p class="micro mt">No stories in your enabled desks.</p>'}</div><div>${top.slice(0, 2).map(s => `<div class="listrow"><div class="flex1"><p class="eyebrow">${esc(deskName(s.desk))}</p><button type="button" class="headline-link" data-action="openStory" data-id="${esc(s.id)}">${esc(s.title)}</button><div class="itemdetail">${esc(s.source)} · ${timeAgo(s.published)}</div></div></div>`).join('')}</div></div><div class="actions mt">${btn('Open the edition', 'navigate', { cls: 'small', id: 'edition', ic: 'arrow' })}</div></section>`;
+}
+
+/* ---------- Render pipeline ---------- */
+const cssEsc = s => (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&');
+function focusKey(el) {
+  if (!el || el === document.body || !el.dataset) return null;
+  if (el.id) return '#' + cssEsc(el.id);
+  if (!el.dataset.action) return null;
+  let s = `[data-action="${cssEsc(el.dataset.action)}"]`;
+  if (el.dataset.id) s += `[data-id="${cssEsc(el.dataset.id)}"]`;
+  if (el.dataset.item) s += `[data-item="${cssEsc(el.dataset.item)}"]`;
+  return s;
+}
+function setTitle() {
+  const t = state.timer;
+  document.title = t.running ? `${clockText(t.seconds)} ${t.mode === 'focus' ? 'Focus' : 'Break'} · FUMO` : `${PAGE_TITLES[page] || 'FUMO'} · FUMO`;
+}
+function renderNav() {
+  const counts = { followups: openWaiting().length, inbox: state.inbox.length, edition: state.reading.filter(r => !r.read).length };
+  $('#nav').innerHTML = NAV.map(([id, ic, label]) => `<button type="button" data-action="navigate" data-id="${id}" title="${label}" aria-label="${label}${counts[id] ? `, ${counts[id]}` : ''}"${page === id ? ' aria-current="page"' : ''}>${icon(ic)}<span class="label">${label}</span>${counts[id] ? `<span class="count">${counts[id]}</span>` : ''}</button>`).join('');
+}
+function updateTimerChip() {
+  const t = state.timer, chip = $('#timerChip');
+  chip.classList.toggle('on', t.running && page !== 'focus');
+  if (t.running) {
+    $('#timerChipText').textContent = `${t.mode === 'focus' ? 'Focus' : 'Break'} ${clockText(t.seconds)}`;
+    chip.setAttribute('aria-label', `${t.mode === 'focus' ? 'Focus' : 'Break'} timer running, ${clockText(t.seconds)} left. Open Focus`);
+  }
+}
+function renderChrome() {
+  renderNav();
+  const n = state.profile.name, light = document.documentElement.dataset.theme === 'light';
+  $('#profileName').textContent = n || 'Set your name';
+  $('#avatar').textContent = (n || 'F').charAt(0).toUpperCase();
+  const tb = $('#themeBtn');
+  tb.innerHTML = icon(light ? 'moon' : 'sun');
+  tb.setAttribute('aria-label', light ? 'Switch to dark theme' : 'Switch to light theme');
+  tb.title = tb.getAttribute('aria-label');
+  $('#searchKbd').textContent = IS_MAC ? '⌘ K' : 'Ctrl K';
+  $('#clock').textContent = new Date().toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+  updateTimerChip();
+}
+function render(opts = {}) {
+  const active = document.activeElement;
+  const key = active && ($('#page').contains(active) || $('#nav').contains(active)) ? focusKey(active) : null;
+  const drafts = {};
+  $$('#page input[id]:not([type=checkbox]):not([type=radio]), #page textarea[id]').forEach(i => { if (i.value) drafts[i.id] = i.value; });
+  renderChrome();
+  let html;
+  try { html = (PAGES[page] || renderCommand)(); } catch (err) { console.error(err); html = crashPanel(err); }
+  $('#page').innerHTML = html;
+  Object.entries(drafts).forEach(([id, v]) => { const i = document.getElementById(id); if (i && 'value' in i && !i.value) i.value = v; });
+  setTitle();
+  if (opts.focusHeading) $('#page h1')?.focus({ preventScroll: true });
+  else if (key) { const el = document.querySelector(key); if (el) el.focus({ preventScroll: true }); }
+}
+function go(target) {
+  const next = PAGES[target] ? target : 'command';
+  if (next === 'edition' && page !== 'edition') {
+    editionPrevVisit = state.editionPrefs.lastVisit;
+    state.editionPrefs.lastVisit = new Date().toISOString();
+    editionView = 'front'; save(); refreshEdition(false);
+  }
+  page = next;
+  if (isMobile()) setDrawer(false, false);
+  render({ focusHeading: true });
+  window.scrollTo(0, 0);
+}
+
+/* ---------- Layout: collapsed rail on desktop, drawer on phones ---------- */
+function applyLayout() {
+  const app = $('#app'), mobile = isMobile(), open = mobile && app.classList.contains('drawer-open');
+  if (!mobile) app.classList.remove('drawer-open');
+  app.classList.toggle('collapsed', !mobile && prefCollapsed);
+  $('#sidebar').inert = mobile && !open;
+  $('#menuBtn').setAttribute('aria-expanded', String(open));
+  const cb = $('#collapseBtn');
+  cb.setAttribute('aria-expanded', String(mobile ? open : !prefCollapsed));
+  cb.setAttribute('aria-label', mobile ? 'Close navigation' : prefCollapsed ? 'Expand sidebar' : 'Collapse sidebar');
+  cb.title = cb.getAttribute('aria-label');
+}
+function setDrawer(open, moveFocus = true) {
+  $('#app').classList.toggle('drawer-open', open);
+  applyLayout();
+  if (!moveFocus) return;
+  if (open) $('#nav button')?.focus(); else $('#menuBtn').focus();
+}
+
+/* ---------- Modals ---------- */
+function showModal(title, html, opts = {}) {
+  const key = opts.refresh ? focusKey(document.activeElement) : null;
+  if (!modal) modalOpenerKey = focusKey(document.activeElement);
+  modal = title;
+  $('#modal').className = 'modal ' + (opts.size || '');
+  $('#modaltitle').textContent = title;
+  $('#modalcontent').innerHTML = html;
+  $('#modalback').classList.add('open');
+  $('#app').inert = true;
+  const restore = key && $('#modalcontent').querySelector(key);
+  if (restore) { restore.focus(); return; }
+  const first = $('#modalcontent').querySelector('input:not([type=hidden]):not([type=checkbox]):not([type=radio]),textarea,select');
+  (first || $('#modal [data-action=closeModal]')).focus();
+}
+function closeModal() {
+  if (!modal) return;
+  modal = null;
+  clearInterval(breathTimer); breathTimer = null;
+  $('#modalback').classList.remove('open');
+  $('#modalcontent').innerHTML = '';
+  $('#app').inert = false;
+  const el = modalOpenerKey && document.querySelector(modalOpenerKey);
+  (el || $('#page h1') || $('#main')).focus?.({ preventScroll: true });
+}
+function trapFocus(e) {
+  const f = $$('#modal button:not(:disabled), #modal input:not([type=hidden]):not(:disabled), #modal textarea, #modal select:not(:disabled), #modal a[href]').filter(x => x.offsetParent !== null);
+  if (!f.length) return;
+  if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+  else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+}
+
+function projectModal(id, refresh) {
+  const p = projectById(id);
+  if (!p) return;
+  const total = state.checklist.length, done = state.checklist.filter(c => p.checks[c]).length;
+  const wk = focusMinutes(s => s.projectId === p.id && inLastDays(s.date, 7)), all = focusMinutes(s => s.projectId === p.id);
+  const log = p.log.slice().sort((a, b) => b.date.localeCompare(a.date));
+  showModal(p.title, `<p class="client">${[clientOf(p), p.status, p.priority + ' priority', p.due ? dueText(p.due) : ''].filter(Boolean).map(esc).join(' · ')}</p>
+  <div class="modal-section"><p class="eyebrow">Next action</p><p>${p.next ? esc(p.next) : '<span class="faint">Not set</span>'}</p>${p.blocker ? `<p class="blocker mt-s">${icon('flag')}${esc(p.blocker)}</p>` : ''}</div>
+  <div class="modal-section"><p class="eyebrow">Links</p>${p.links.length ? `<div class="links">${linkPills(p.links)}</div>` : '<p class="hint">Add the Codex output folder, repo, demo URL or client chat when you edit the project.</p>'}</div>
+  <div class="modal-section"><p class="eyebrow">Demo-day checklist · ${done}/${total}</p>${state.checklist.map((c, i) => `<label class="choice listrow"><input type="checkbox" class="check" data-action="toggleCheck" data-id="${p.id}" data-item="${i}" ${p.checks[c] ? 'checked' : ''}><span>${esc(c)}</span></label>`).join('') || '<p class="hint">Set up your checklist in Settings.</p>'}</div>
+  <div class="modal-section"><p class="eyebrow">Build log</p><div class="loggrid">${field('logVersion', 'Version', '', 'text', 'maxlength="40" placeholder="v0.3"')}${field('logNote', 'What shipped', '', 'text', 'maxlength="1000" placeholder="Fixed light theme, added follow-ups"')}${btn('Add', 'addLog', { id: p.id, ic: 'plus' })}</div><div class="mt-s">${log.map(e => `<div class="log-entry"><time>${fmtDay(e.date)}</time><div class="row between" style="align-items:flex-start"><span>${e.version ? `<strong>${esc(e.version)}</strong> · ` : ''}${esc(e.note)}</span>${btn('', 'deleteLog', { cls: 'quiet small', id: p.id, item: e.id, ic: 'x', label: 'Delete log entry' })}</div></div>`).join('') || '<p class="hint">Nothing logged yet.</p>'}</div></div>
+  <div class="modal-section"><p class="eyebrow">Focus</p><p class="micro">${hours(wk)}h this week · ${hours(all)}h all time</p></div>
+  <div class="modalactions">${btn('Edit project', 'editProject', { id: p.id, ic: 'edit' })}${btn('Start focus', 'focusOn', { cls: 'primary', id: p.id, ic: 'play' })}</div>`, { size: 'wide', refresh });
+}
+function projectForm(p) {
+  const clients = [...new Set(state.projects.map(x => x.client).filter(Boolean))].filter(c => c !== 'Own product').sort();
+  const linkText = (p?.links || []).map(l => l.label ? `${l.label} | ${l.url}` : l.url).join('\n');
+  showModal(p ? 'Edit project' : 'New project', `<div class="fields">
+    ${field('ptitle', 'Project', p?.title || '', 'text', 'maxlength="150"')}
+    <div class="fields field2">${field('pclient', 'Client', p?.client || '', 'text', 'list="clientList" maxlength="80" placeholder="Own product"')}${field('pdue', 'Due date', p?.due || '', 'date')}</div>
+    <datalist id="clientList">${['Own product', ...clients].map(c => `<option value="${esc(c)}"></option>`).join('')}</datalist>
+    <div class="fields field2">${selectField('pstatus', 'Status', STATUSES, p?.status || 'Active')}${selectField('ppriority', 'Priority', PRIORITIES, p?.priority || 'Medium')}</div>
+    ${field('pnext', 'Next action', p?.next || '', 'textarea', 'maxlength="1000"')}
+    ${field('pblocker', 'Blockers / dependencies', p?.blocker || '', 'text', 'maxlength="700"')}
+    ${field('plinks', 'Links — one per line, optional label first', linkText, 'textarea', 'placeholder="Demo | https://…&#10;Folder | C:\\Users\\…\\outputs"')}
+  </div><input type="hidden" id="pid" value="${esc(p?.id || '')}">${modalFooter('saveProject')}`);
+}
+function waitingForm(w) {
+  showModal(w ? 'Edit follow-up' : 'New follow-up', `<div class="fields">${field('fwho', 'Waiting on', w?.who || '', 'text', 'maxlength="80" placeholder="Client, supplier, collaborator"')}${field('fwhat', 'For what', w?.what || '', 'text', 'maxlength="300" placeholder="Feedback on the demo"')}<div class="fields field2">${selectField('fproject', 'Project', [['', 'No project'], ...state.projects.filter(p => !p.archived || p.id === w?.projectId).map(p => [p.id, p.title])], w?.projectId || '')}${field('fsince', 'Asked on', w?.since || today(), 'date')}</div></div><input type="hidden" id="fid" value="${esc(w?.id || '')}">${modalFooter('saveWaiting', 'Save', w ? btn('Delete', 'deleteWaiting', { cls: 'danger small', id: w.id }) : '')}`);
+}
+function renewalForm(r) {
+  showModal(r ? 'Edit renewal' : 'New renewal', `<div class="fields">${field('rname', 'What renews', r?.name || '', 'text', 'maxlength="120" placeholder="mail domain, client VPS, API key…"')}<div class="fields field2">${selectField('rkind', 'Kind', RENEWAL_KINDS, r?.kind || 'Domain')}${field('rdate', 'Renewal date', r?.date || '', 'date')}</div>${field('rnote', 'Note', r?.note || '', 'text', 'maxlength="300" placeholder="Registrar, who pays, account"')}</div><input type="hidden" id="rid" value="${esc(r?.id || '')}">${modalFooter('saveRenewal', 'Save', r ? btn('Renewed +1 year', 'renewYear', { cls: 'small', id: r.id }) + ' ' + btn('Delete', 'deleteRenewal', { cls: 'danger small', id: r.id }) : '')}`);
+}
+function readingForm() {
+  showModal('Save a link', `<div class="fields">${field('lurl', 'Link', '', 'url', 'placeholder="https://…" maxlength="800"')}${field('ltitle', 'Title (optional)', '', 'text', 'maxlength="200"')}${selectField('ldesk', 'Desk', DESKS, DESK_IDS.includes(editionView) ? editionView : 'work')}</div>${modalFooter('saveReading', 'Save link')}`);
+}
+function routeForm(n) {
+  const opts = openProjects().sort(projectOrder);
+  if (!opts.length) return toast('Add a project first');
+  showModal('Send to a project', `<p class="muted">${esc(n.text)}</p><div class="fields mt">${selectField('routeProject', 'Project', opts.map(p => [p.id, p.client ? `${p.title} · ${p.client}` : p.title]), n.projectId || opts[0].id)}<label class="choice"><input type="radio" name="routeMode" value="next" checked><span>Make it the project’s next action <span class="hint">(replaces the current one)</span></span></label><label class="choice"><input type="radio" name="routeMode" value="tag"><span>Keep it in the inbox, tagged to the project</span></label></div><input type="hidden" id="routeId" value="${esc(n.id)}">${modalFooter('saveRoute', 'Send')}`);
+}
+function habitForm(h) {
+  showModal(h ? 'Edit habit' : 'New habit', `<div class="fields">${field('htitle', 'Habit', h?.title || '', 'text', 'maxlength="150"')}${selectField('hcat', 'Category', HABIT_CATS, h?.category || 'Focus')}</div><input type="hidden" id="hid" value="${esc(h?.id || '')}">${modalFooter('saveHabit', 'Save', h ? btn('Delete', 'deleteHabit', { cls: 'danger small' }) : '')}`);
+}
+function blockForm(b) {
+  showModal(b ? 'Edit routine block' : 'New routine block', `<div class="fields">${field('btitle', 'Block', b?.title || '', 'text', 'maxlength="150"')}${selectField('bphase', 'Phase', PHASES.map((p, i) => [String(i), p]), String(b?.phase ?? 0))}<div class="fields field2">${field('btime', 'Start time', b?.time || '09:00', 'time')}${field('bduration', 'Minutes', b?.duration || 30, 'number', 'min="1" max="600"')}</div>${field('bdetail', 'Instructions', b?.detail || '', 'textarea', 'maxlength="500"')}</div><input type="hidden" id="bid" value="${esc(b?.id || '')}">${modalFooter('saveBlock', 'Save', b ? btn('Delete', 'deleteBlock', { cls: 'danger small' }) : '')}`);
+}
+function workoutForm() {
+  showModal('Log workout', `<div class="fields">${field('wtitle', 'Session', 'Training session', 'text', 'maxlength="150"')}<div class="fields field2">${selectField('wtype', 'Type', WORKOUT_TYPES, 'Calisthenics')}${field('wminutes', 'Minutes', 45, 'number', 'min="1" max="1440"')}</div>${field('wdate', 'Date', today(), 'date')}${field('wskills', 'Skills — one per line, sets × reps (optional)', '', 'textarea', 'placeholder="Pull-ups 3x8&#10;Dips 3x12&#10;Handstand hold 4x20s"')}${field('wnotes', 'Notes', '', 'text', 'maxlength="600"')}</div>${modalFooter('saveWorkout', 'Log session')}`);
+}
+function winsForm() {
+  const def = winsMode() === 'tomorrow' ? 'tomorrow' : new Date().getHours() < 17 ? 'today' : 'tomorrow';
+  showModal('Must-wins', `<div class="fields">${selectField('winsFor', 'For', [['today', 'Today'], ['tomorrow', 'Tomorrow']], def)}${[0, 1, 2].map(i => field('win' + i, `Must-win ${i + 1}`, winsMode() === 'stale' ? '' : state.wins[i], 'text', 'maxlength="300"')).join('')}</div>${modalFooter('saveWins')}`);
+}
+function shutdownForm() {
+  const chase = openWaiting().filter(w => waitAge(w) >= 3), mode = winsMode();
+  const carry = mode === 'tomorrow' ? state.wins.filter(Boolean) : mode === 'today' ? state.wins.filter((w, i) => w && !state.winsDone[i]) : [];
+  showModal('Evening shutdown', `<p class="muted">Close the loops, set tomorrow, protect your evening.</p><div class="fields mt">
+    <label class="choice"><input type="checkbox" class="check" id="reviewed"><span>I reviewed today and captured anything still open.</span></label>
+    ${chase.length ? `<div class="alert" style="margin:0">${icon('follow')}<span>Chase tomorrow: ${chase.slice(0, 4).map(w => esc(w.who)).join(', ')}${chase.length > 4 ? ' and more' : ''}</span></div>` : ''}
+    ${[0, 1, 2].map(i => field('win' + i, `Tomorrow · must-win ${i + 1}`, carry[i] || '', 'text', 'maxlength="300"')).join('')}
+    <div class="fields field2">${selectField('shipProject', 'Shipped today on', [['', 'Nothing to log'], ...openProjects().map(p => [p.id, p.title])], '')}${field('shipNote', 'What shipped', '', 'text', 'maxlength="1000" placeholder="Optional"')}</div>
+    <label class="choice"><input type="checkbox" class="check" id="wipe"><span>Clear the Quick Capture inbox (${plural(state.inbox.length, 'note')})</span></label>
+  </div>${modalFooter('completeShutdown', 'Complete shutdown')}`);
+}
+function noteForm() {
+  showModal('Capture a note', `<div class="fields">${field('noteText', 'Note or thought', '', 'textarea', 'maxlength="2000"')}${selectField('noteProject', 'Tag to a project (optional)', [['', 'No project'], ...openProjects().map(p => [p.id, p.title])], '')}</div>${modalFooter('saveNote', 'Capture')}`);
+}
+function searchForm() {
+  showModal('Search', `<label class="sr-only" for="globalSearch">Search</label><input class="input" id="globalSearch" placeholder="Projects, clients, follow-ups, notes, links…" autocomplete="off"><div id="searchResults" class="search-results"></div>`);
+  searchResults('');
+}
+function searchResults(term) {
+  const q = term.toLowerCase().trim(), target = $('#searchResults');
+  if (!target) return;
+  const items = [
+    ...state.projects.filter(p => !p.archived).map(p => ({ type: p.client ? `Project · ${p.client}` : 'Project', title: p.title, detail: p.next, action: 'openProject', id: p.id })),
+    ...openWaiting().map(w => ({ type: 'Follow-up', title: `${w.who}${w.what ? ' — ' + w.what : ''}`, detail: `${waitAge(w)}d waiting`, action: 'editWaiting', id: w.id })),
+    ...state.inbox.map(n => ({ type: 'Note', title: n.text, detail: 'Inbox', action: 'routeNote', id: n.id })),
+    ...(editionData()?.stories || []).slice(0, 400).map(s => ({ type: `Edition · ${deskName(s.desk)}`, title: s.title, detail: s.source, action: 'openStory', id: s.id })),
+    ...state.reading.map(r => ({ type: 'Library', title: r.title || hostOf(r.url), detail: r.source || hostOf(r.url), action: 'openReadingTab', id: r.id })),
+    ...state.renewals.map(r => ({ type: 'Renewal', title: r.name, detail: `${r.kind} · ${fmtDay(r.date)}`, action: 'editRenewal', id: r.id })),
+    ...state.blocks.map(b => ({ type: 'Routine', title: b.title, detail: `${b.time} · ${b.detail}`, action: 'editBlock', id: b.id }))
+  ].filter(x => !q || `${x.type} ${x.title} ${x.detail}`.toLowerCase().includes(q)).slice(0, 12);
+  target.innerHTML = items.length ? items.map(r => `<button type="button" class="search-result" data-action="${r.action}" data-id="${esc(r.id)}"><strong>${esc(r.title)}</strong><small>${esc(r.type)}${r.detail ? ' · ' + esc(r.detail) : ''}</small></button>`).join('') : '<p class="empty">No matches. Try another word.</p>';
+}
+function breathForm() {
+  showModal('Breathing reset', `<p class="muted">Two minutes of paced box breathing. Breathe naturally if the holds are uncomfortable, and stop if you feel dizzy.</p><div class="breath" id="breath"><b id="breathlabel">Ready</b><span id="breathcount">4 · 4 · 4 · 4</span></div><div class="row" style="justify-content:center">${btn('Begin', 'beginBreath', { cls: 'primary', ic: 'play' })}${btn('Stop', 'stopBreath')}</div><p class="hint mt" style="text-align:center">Or: a short walk, or five minutes with your eyes off the screen.</p>`);
+}
+function doBreath() {
+  clearInterval(breathTimer);
+  const start = Date.now(), names = ['Inhale', 'Hold', 'Exhale', 'Hold'];
+  const update = () => {
+    const el = $('#breath'); if (!el) return clearInterval(breathTimer);
+    const e = (Date.now() - start) / 1000;
+    if (e >= 120) { clearInterval(breathTimer); $('#breathlabel').textContent = 'Complete'; $('#breathcount').textContent = 'Two minutes done'; el.style.transform = 'scale(1)'; return; }
+    const k = Math.floor(e / 4) % 4;
+    $('#breathlabel').textContent = names[k];
+    $('#breathcount').textContent = `${4 - Math.floor(e % 4)} seconds`;
+    el.style.transform = `scale(${k < 2 ? 1.22 : 1})`;
+  };
+  update(); breathTimer = setInterval(update, 100);
+}
+
+/* ---------- The Daily Edition: article view and settings ---------- */
+function storyModal(s) {
+  const saved = state.reading.some(r => r.storyId === s.id || r.url === s.url);
+  const when = Number.isFinite(Date.parse(s.published)) ? new Date(s.published).toLocaleString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+  showModal(deskName(s.desk), `<article class="article-view">${state.editionPrefs.images && s.image ? `<figure class="figure"><img src="${esc(s.image)}" alt="" decoding="async" referrerpolicy="no-referrer"><figcaption>Image: ${esc(s.source)}</figcaption></figure>` : ''}
+  <h3 class="story-title article-title">${esc(s.title)}</h3><p class="byline"><span>${esc(s.source)}</span>${when ? `<span aria-hidden="true">·</span><time datetime="${esc(s.published)}">${when}</time>` : ''}</p>
+  ${s.summary ? `<p class="eyebrow mt">From ${esc(s.source)}’s summary</p><p class="story-dek" style="margin-top:6px">${esc(s.summary)}</p>` : ''}
+  <p class="hint mt">FUMO shows the headline and the publisher’s own summary. ${s.url ? `The full story is on ${esc(s.source)}.` : 'This is an example story, so there is nothing to open.'}</p></article>
+  <div class="modalactions"><div class="flex1">${btn('Mark unread', 'unreadStory', { cls: 'quiet small', id: s.id })}</div>${btn(saved ? 'Saved' : 'Save to library', 'saveStory', { id: s.id, ic: saved ? 'check' : 'plus', attrs: saved ? 'disabled' : '' })}${s.url ? `<a class="btn primary" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">Read at ${esc(s.source)} ${icon('arrow')}</a>` : ''}</div>`, { size: 'wide' });
+}
+function editionSettingsForm() {
+  const p = state.editionPrefs, desks = allDesks();
+  const hasBlock = state.blocks.some(b => /daily edition/i.test(b.title));
+  showModal('Edition settings', `<div class="fields">
+    ${field('edFeed', 'Headline service', editionRepo() || p.feedUrl, 'text', 'placeholder="your-name/fumo-edition" maxlength="500" autocomplete="off" spellcheck="false"')}
+    ${field('edKey', 'Read-only access key', '', 'password', `placeholder="${getEditionKey() ? 'Saved — leave empty to keep it' : 'github_pat_…'}" maxlength="300" autocomplete="off" spellcheck="false"`)}
+    <p class="hint">Your private repository as <code>name/repo</code>, plus a fine-grained key with <em>Contents: read-only</em> on that repo. The key stays in this browser and is never included in backups. A public <code>https://…/edition.json</code> address also works, without a key. Leave the service empty to disconnect.</p>
+    <fieldset class="fieldset"><legend>How much each desk leads your front page</legend><div class="weights">${desks.map(d => selectField('edw-' + d.id, esc(d.name), WEIGHT_LABELS.map((l, i) => [String(i), l]), String(deskWeight(d.id)))).join('')}</div></fieldset>
+    <div class="fields field2">${selectField('edStyle', 'Reading style', [['obsidian', 'Obsidian — matches FUMO'], ['porcelain', 'Porcelain — paper']], p.style)}${selectField('edImages', 'Photos', [['on', 'Show publisher photos'], ['off', 'Text only']], p.images ? 'on' : 'off')}</div>
+    <div class="row between wrap"><span class="hint">${hasBlock ? 'Reading time is in your morning routine.' : 'Make it a ritual: 15 minutes with the edition before deep work.'}</span>${hasBlock ? '' : btn('Add to my morning', 'addReadingBlock', { cls: 'small', ic: 'plus' })}</div>
+  </div>${modalFooter('saveEditionSettings')}`);
+}
+function sourcesModal() {
+  const ed = editionData();
+  if (!ed) return;
+  const list = ed.sources.slice().sort((a, b) => a.ok - b.ok || a.desk.localeCompare(b.desk));
+  showModal('Sources', `<p class="muted">Checked when this edition was collected, ${timeAgo(ed.generated)}. A failed source keeps its stories from the previous run.</p><div class="mt-s">${list.map(s => `<div class="listrow"><div class="flex1"><div class="itemname">${esc(s.name)}</div><div class="itemdetail">${esc(deskName(s.desk))}</div></div><span class="pill ${s.ok ? 'good' : 'bad'}">${s.ok ? `${s.items} items` : esc(s.error || 'Failed')}</span></div>`).join('')}</div><p class="hint mt">Swap or add sources in <code>sources.json</code> in your headline service repository.</p>`);
+}
+
+/* ---------- Actions ---------- */
+const val = sel => ($(sel)?.value ?? '').trim();
+function doAction(a, key, el) {
+  let x;
+  switch (a) {
+    /* Navigation and chrome */
+    case 'navigate': go(key); break;
+    case 'goRenewals': go('projects'); $('#renewals')?.scrollIntoView({ block: 'start' }); break;
+    case 'openDrawer': setDrawer(true); break;
+    case 'closeDrawer': setDrawer(false); break;
+    case 'toggleSidebar':
+      if (isMobile()) { setDrawer(false); break; }
+      prefCollapsed = !prefCollapsed;
+      try { localStorage.setItem(UI_SIDEBAR, prefCollapsed ? 'collapsed' : 'expanded'); } catch (e) {}
+      applyLayout(); break;
+    case 'toggleTheme': {
+      const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem(UI_THEME, next); } catch (e) {}
+      renderChrome(); break;
+    }
+    case 'openSearch': searchForm(); break;
+    case 'closeModal': closeModal(); break;
+    case 'undo':
+      if (toastUndo) { const fn = toastUndo; toastUndo = null; fn(); save(); render(); toast('Undone'); }
+      break;
+
+    /* Inbox */
+    case 'newNote': noteForm(); break;
+    case 'saveNote': {
+      const text = val('#noteText');
+      if (!text) return toast('Write something first');
+      state.inbox.push({ id: uid(), text: text.slice(0, 2000), created: new Date().toISOString(), projectId: val('#noteProject') });
+      save(); closeModal(); render(); toast('Note captured'); break;
+    }
+    case 'capture': {
+      const input = $('#capture'), text = input?.value.trim();
+      if (!text) return input?.focus();
+      state.inbox.push({ id: uid(), text: text.slice(0, 2000), created: new Date().toISOString(), projectId: '' });
+      input.value = ''; save(); render(); toast('Captured'); break;
+    }
+    case 'deleteInbox': withUndo('Note deleted', () => { state.inbox = state.inbox.filter(n => n.id !== key); }); break;
+    case 'routeNote': x = state.inbox.find(n => n.id === key); if (x) routeForm(x); break;
+    case 'saveRoute': {
+      const n = state.inbox.find(i => i.id === val('#routeId')), p = projectById(val('#routeProject'));
+      if (!n || !p) return toast('Pick a project');
+      if ($('input[name=routeMode]:checked')?.value === 'next') {
+        closeModal();
+        withUndo(`Now the next action for ${p.title}`, () => { p.next = n.text.slice(0, 1000); state.inbox = state.inbox.filter(i => i.id !== n.id); });
+      } else { n.projectId = p.id; save(); closeModal(); render(); toast(`Tagged to ${p.title}`); }
+      break;
+    }
+
+    /* Projects */
+    case 'newProject': projectForm(); break;
+    case 'editProject': x = projectById(key); if (x) projectForm(x); break;
+    case 'openProject': x = projectById(key); if (x) projectModal(x.id); break;
+    case 'saveProject': {
+      const title = val('#ptitle');
+      if (!title) return toast('Give the project a name');
+      const { out, bad } = parseLinks($('#plinks').value);
+      if (bad.length) return toast(`Couldn’t read this link: ${bad[0].slice(0, 60)}`);
+      const data = { title: title.slice(0, 150), client: val('#pclient').slice(0, 80), due: dayOr(val('#pdue')), status: oneOf(val('#pstatus'), STATUSES, 'Active'), priority: oneOf(val('#ppriority'), PRIORITIES, 'Medium'), next: val('#pnext').slice(0, 1000), blocker: val('#pblocker').slice(0, 700), links: out };
+      const p = projectById(val('#pid'));
+      if (p) Object.assign(p, data); else state.projects.push({ id: uid(), ...data, log: [], checks: {}, archived: false });
+      save(); closeModal(); render(); toast(p ? 'Project updated' : 'Project added'); break;
+    }
+    case 'archiveProject': x = projectById(key); if (x) withUndo(`${x.title} archived`, () => { x.archived = true; }); break;
+    case 'archiveModal': {
+      const list = state.projects.filter(p => p.archived);
+      showModal('Archived projects', list.map(p => `<div class="listrow"><div class="flex1"><div class="itemname">${esc(p.title)}</div><div class="itemdetail">${esc(clientOf(p))}</div></div>${btn('Restore', 'restoreProject', { cls: 'small', id: p.id })}</div>`).join('') || '<div class="empty">No archived projects.</div>');
+      break;
+    }
+    case 'restoreProject': x = projectById(key); if (x) { x.archived = false; save(); closeModal(); render(); toast(`${x.title} restored`); } break;
+    case 'clientFilter': clientFilter = key; render(); break;
+    case 'toggleCheck': {
+      const p = projectById(key), item = state.checklist[Number(el?.dataset.item)];
+      if (!p || !item) break;
+      if (el.checked) p.checks[item] = true; else delete p.checks[item];
+      save(); render(); projectModal(p.id, true); break;
+    }
+    case 'addLog': {
+      const p = projectById(key), note = val('#logNote');
+      if (!p) break;
+      if (!note) { $('#logNote')?.focus(); return toast('Add a line about what shipped'); }
+      p.log.push({ id: uid(), date: today(), version: val('#logVersion').slice(0, 40), note: note.slice(0, 1000) });
+      save(); render(); projectModal(p.id, true); toast('Added to the build log'); break;
+    }
+    case 'deleteLog': {
+      const p = projectById(key);
+      if (p) { p.log = p.log.filter(e => e.id !== el?.dataset.item); save(); render(); projectModal(p.id, true); }
+      break;
+    }
+
+    /* Follow-ups */
+    case 'newWaiting': waitingForm(); break;
+    case 'editWaiting': x = state.waiting.find(w => w.id === key); if (x) waitingForm(x); break;
+    case 'saveWaiting': {
+      const who = val('#fwho');
+      if (!who) return toast('Who are you waiting on?');
+      const data = { who: who.slice(0, 80), what: val('#fwhat').slice(0, 300), projectId: val('#fproject'), since: dayOr(val('#fsince'), today()) };
+      const w = state.waiting.find(i => i.id === val('#fid'));
+      if (w) Object.assign(w, data); else state.waiting.push({ id: uid(), ...data, nudged: '', done: false, resolved: '' });
+      save(); closeModal(); render(); toast(w ? 'Follow-up updated' : 'Follow-up added'); break;
+    }
+    case 'nudgeWaiting': x = state.waiting.find(w => w.id === key); if (x) { x.nudged = today(); save(); render(); toast(`Nudged ${x.who} — clock reset`); } break;
+    case 'resolveWaiting': x = state.waiting.find(w => w.id === key); if (x) withUndo(`${x.who} — resolved`, () => { x.done = true; x.resolved = today(); }); break;
+    case 'reopenWaiting': x = state.waiting.find(w => w.id === key); if (x) { x.done = false; x.resolved = ''; save(); render(); } break;
+    case 'deleteWaiting': closeModal(); withUndo('Follow-up deleted', () => { state.waiting = state.waiting.filter(w => w.id !== key); }); break;
+
+    /* Renewals */
+    case 'newRenewal': renewalForm(); break;
+    case 'editRenewal': x = state.renewals.find(r => r.id === key); if (x) renewalForm(x); break;
+    case 'saveRenewal': {
+      const name = val('#rname'), date = dayOr(val('#rdate'));
+      if (!name || !date) return toast('Add a name and a renewal date');
+      const data = { name: name.slice(0, 120), kind: oneOf(val('#rkind'), RENEWAL_KINDS, 'Other'), date, note: val('#rnote').slice(0, 300) };
+      const r = state.renewals.find(i => i.id === val('#rid'));
+      if (r) Object.assign(r, data); else state.renewals.push({ id: uid(), ...data });
+      save(); closeModal(); render(); break;
+    }
+    case 'renewYear': x = state.renewals.find(r => r.id === key); if (x) { const d = parseDay(x.date); d.setFullYear(d.getFullYear() + 1); x.date = dayKey(d); save(); closeModal(); render(); toast(`${x.name} now renews ${fmtDay(x.date, { day: 'numeric', month: 'short', year: 'numeric' })}`); } break;
+    case 'deleteRenewal': closeModal(); withUndo('Renewal removed', () => { state.renewals = state.renewals.filter(r => r.id !== key); }); break;
+
+    /* Reading list */
+    case 'newReading': readingForm(); break;
+    case 'saveReading': {
+      const url = toUrl(val('#lurl'));
+      if (!url) return toast('That doesn’t look like a web link');
+      if (state.reading.some(r => r.url === url)) return toast('Already in your reading list');
+      state.reading.push({ id: uid(), url, title: val('#ltitle').slice(0, 200), desk: oneOf(val('#ldesk'), DESKS.map(d => d[0]), 'work'), added: today(), read: false, source: hostOf(url), published: '', summary: '', storyId: '' });
+      save(); closeModal(); render(); toast('Saved to your library'); break;
+    }
+    case 'openReading': x = state.reading.find(r => r.id === key); if (x && !x.read) { x.read = true; save(); setTimeout(render, 400); } break;
+    case 'openReadingTab': x = state.reading.find(r => r.id === key); if (x) { window.open(x.url, '_blank', 'noopener,noreferrer'); x.read = true; save(); closeModal(); render(); } break;
+    case 'toggleRead': x = state.reading.find(r => r.id === key); if (x) { x.read = !x.read; save(); render(); } break;
+    case 'deleteReading': withUndo('Link removed', () => { state.reading = state.reading.filter(r => r.id !== key); }); break;
+    case 'editionView': editionView = key; render(); $('.deskbar [aria-current=page]')?.scrollIntoView?.({ block: 'nearest', inline: 'center' }); window.scrollTo(0, 0); break;
+    case 'openStory': x = findStory(key); if (x) { markRead(x); save(); render(); storyModal(x); } break;
+    case 'unreadStory': delete state.editionRead[key]; save(); closeModal(); render(); toast('Marked unread'); break;
+    case 'forgetRead': delete state.editionRead[key]; save(); render(); break;
+    case 'saveStory': {
+      x = findStory(key);
+      if (!x || !x.url) return toast('Example stories can’t be saved');
+      if (!state.reading.some(r => r.storyId === x.id || r.url === x.url)) state.reading.push({ id: uid(), url: x.url, title: x.title, desk: DESK_IDS.includes(x.desk) ? x.desk : 'work', added: today(), read: true, source: x.source, published: x.published, summary: x.summary, storyId: x.id });
+      save(); render(); storyModal(x); toast('Saved to your library'); break;
+    }
+    case 'editionSettings': editionSettingsForm(); break;
+    case 'editionSources': sourcesModal(); break;
+    case 'saveEditionSettings': {
+      const raw = val('#edFeed'), repo = /\.json(\?|$)/i.test(raw) ? '' : parseRepo(raw), url = !raw ? '' : repo ? `github:${repo}` : toUrl(raw), key = val('#edKey');
+      if (raw && !repo && !url.startsWith('https://')) return toast('Enter your repository as name/repo, or an https:// address');
+      if (repo && !key && !getEditionKey()) return toast('Paste your read-only access key too');
+      if (key && !/^[\w-]{20,300}$/.test(key)) return toast('That doesn’t look like a GitHub access key');
+      const p = state.editionPrefs, changed = url !== p.feedUrl;
+      allDesks().forEach(d => { if ($('#edw-' + d.id)) p.weights[d.id] = int(val('#edw-' + d.id), deskWeight(d.id), 0, 3); });
+      p.style = val('#edStyle') === 'porcelain' ? 'porcelain' : 'obsidian';
+      p.images = val('#edImages') !== 'off';
+      p.feedUrl = url;
+      if (key) setEditionKey(key);
+      if (!url) setEditionKey('');
+      if (changed) { editionCache = null; editionPreview = false; try { localStorage.removeItem(EDITION_KEY); } catch (e) {} }
+      save(); closeModal(); render();
+      if ((changed || key) && url) { editionLastTry = 0; toast('Connecting to your headline service…'); refreshEdition(true); }
+      break;
+    }
+    case 'refreshEdition': if (state.editionPrefs.feedUrl) refreshEdition(true); else editionSettingsForm(); break;
+    case 'previewEdition': editionPreview = !editionPreview; SAMPLE = null; render(); break;
+    case 'addReadingBlock':
+      if (!state.blocks.some(b => /daily edition/i.test(b.title))) state.blocks.push({ id: uid(), time: '08:45', phase: 0, title: 'Read The Daily Edition', detail: '15 minutes with the front page, then into deep work', duration: 15, done: false });
+      save(); editionSettingsForm(); toast('Added a 08:45 reading block to your morning'); break;
+
+    /* Habits and routine */
+    case 'newHabit': habitForm(); break;
+    case 'editHabit': x = state.habits.find(h => h.id === key); if (x) habitForm(x); break;
+    case 'saveHabit': {
+      const title = val('#htitle');
+      if (!title) return toast('Name the habit');
+      const h = state.habits.find(i => i.id === val('#hid')), data = { title: title.slice(0, 150), category: oneOf(val('#hcat'), HABIT_CATS, 'Focus') };
+      if (h) Object.assign(h, data); else state.habits.push({ id: uid(), ...data, history: {}, grace: [] });
+      save(); closeModal(); render(); break;
+    }
+    case 'deleteHabit': if (confirm('Delete this habit and its history?')) { const id = val('#hid'); closeModal(); withUndo('Habit deleted', () => { state.habits = state.habits.filter(h => h.id !== id); }); } break;
+    case 'toggleHabit': x = state.habits.find(h => h.id === key); if (x) { if (el?.checked ?? !x.history[today()]) { x.history[today()] = true; x.grace = x.grace.filter(d => d !== today()); } else delete x.history[today()]; save(); render(); } break;
+    case 'graceHabit': x = state.habits.find(h => h.id === key); if (x && graceAllowed(x)) { x.grace.push(today()); save(); render(); toast('Rest day recorded'); } break;
+    case 'newBlock': blockForm(); break;
+    case 'editBlock': x = state.blocks.find(b => b.id === key); if (x) blockForm(x); break;
+    case 'saveBlock': {
+      const title = val('#btitle');
+      if (!title) return toast('Name the block');
+      const b = state.blocks.find(i => i.id === val('#bid'));
+      const data = { title: title.slice(0, 150), phase: int(val('#bphase'), 0, 0, 3), time: /^\d{2}:\d{2}$/.test(val('#btime')) ? val('#btime') : '09:00', duration: int(val('#bduration'), 30, 1, 600), detail: val('#bdetail').slice(0, 500) };
+      if (b) Object.assign(b, data); else state.blocks.push({ id: uid(), ...data, done: false });
+      save(); closeModal(); render(); break;
+    }
+    case 'deleteBlock': { const id = val('#bid'); closeModal(); withUndo('Routine block deleted', () => { state.blocks = state.blocks.filter(b => b.id !== id); }); break; }
+    case 'toggleBlock': x = state.blocks.find(b => b.id === key); if (x) { x.done = el ? el.checked : !x.done; save(); render(); } break;
+
+    /* Training */
+    case 'newWorkout': workoutForm(); break;
+    case 'saveWorkout': {
+      const title = val('#wtitle'), mins = Number(val('#wminutes')), date = dayOr(val('#wdate'));
+      if (!title || !Number.isFinite(mins) || mins <= 0 || mins > 1440 || !date) return toast('Check the name, minutes and date');
+      const { out, bad } = parseSkills($('#wskills').value);
+      if (bad.length) return toast(`Use “name sets x reps”, e.g. Pull-ups 3x8. Couldn’t read: ${bad[0].slice(0, 40)}`);
+      state.workouts.push({ id: uid(), title: title.slice(0, 150), type: oneOf(val('#wtype'), WORKOUT_TYPES, 'Other'), minutes: Math.round(mins), date, notes: val('#wnotes').slice(0, 600), skills: out });
+      save(); closeModal(); render(); toast('Session logged'); break;
+    }
+    case 'deleteWorkout': withUndo('Workout deleted', () => { state.workouts = state.workouts.filter(w => w.id !== key); }); break;
+
+    /* Must-wins and shutdown */
+    case 'winsModal': winsForm(); break;
+    case 'saveWins': {
+      const wins = [0, 1, 2].map(i => val('#win' + i).slice(0, 300)), target = val('#winsFor') === 'tomorrow' ? tomorrow() : today();
+      state.winsDone = wins.map((w, i) => !!w && w === state.wins[i] && target === state.winsDate && state.winsDone[i]);
+      state.wins = wins; state.winsDate = target;
+      save(); closeModal(); render(); break;
+    }
+    case 'toggleWin': {
+      const i = Number(key);
+      if (winsMode() !== 'today' || !state.wins[i]) break;
+      state.winsDone[i] = el?.type === 'checkbox' ? el.checked : !state.winsDone[i];
+      save(); render();
+      if (state.wins.every((w, j) => !w || state.winsDone[j])) toast('All must-wins done. That’s a win.');
+      break;
+    }
+    case 'shutdownModal': shutdownForm(); break;
+    case 'completeShutdown': {
+      if (!$('#reviewed').checked) return toast('Tick the review step first');
+      const wins = [0, 1, 2].map(i => val('#win' + i).slice(0, 300)).filter(Boolean);
+      if (!wins.length) return toast('Set at least one must-win for tomorrow');
+      const ship = projectById(val('#shipProject')), shipNote = val('#shipNote'), wipe = $('#wipe').checked;
+      if (ship && !shipNote) return toast('Add a line about what shipped');
+      if (wipe && state.inbox.length && !confirm('Permanently clear your inbox?')) return;
+      if (ship) ship.log.push({ id: uid(), date: today(), version: '', note: shipNote.slice(0, 1000) });
+      state.wins = [0, 1, 2].map(i => wins[i] || ''); state.winsDone = [false, false, false]; state.winsDate = tomorrow(); state.shutdownDate = today();
+      if (wipe) state.inbox = [];
+      if (state.timer.running) { timerSync(); state.timer.running = false; state.timer.end = 0; }
+      const h = state.habits.find(i => /shutdown/i.test(i.title)); if (h) h.history[today()] = true;
+      save(); closeModal(); render(); toast('Workday closed. Protect your evening.'); break;
+    }
+
+    /* Focus timer */
+    case 'focusOn': {
+      const t = state.timer, pid = key || '';
+      timerSync();
+      if (t.running && t.mode === 'focus') { if (pid !== t.projectId) toast('A focus session is already running'); }
+      else {
+        if (t.mode !== 'focus' || t.running || !t.seconds || (pid !== t.projectId && t.seconds < t.length)) resetTimer('focus');
+        t.projectId = pid; t.running = true; t.end = Date.now() + t.seconds * 1000;
+        toast(`Focus started${projectName(pid) ? ' on ' + projectName(pid) : ''}`);
+      }
+      save(); closeModal(); go('focus'); break;
+    }
+    case 'timerToggle': {
+      const t = state.timer;
+      if (timerSync()) { render(); break; }
+      if (t.running) { t.running = false; t.end = 0; }
+      else { if (!t.seconds) resetTimer(t.mode); t.running = true; t.end = Date.now() + t.seconds * 1000; }
+      save(); render(); break;
+    }
+    case 'timerFinish': {
+      const t = state.timer;
+      timerSync();
+      if (t.mode !== 'focus') break;
+      const mins = Math.round((t.length - t.seconds) / 60), pid = t.projectId;
+      logSession(mins, pid); resetTimer('break');
+      save(); render(); toast(mins >= 1 ? `Logged ${mins} min${projectName(pid) ? ' to ' + projectName(pid) : ''}` : 'Too short to log');
+      break;
+    }
+    case 'timerReset': resetTimer(state.timer.mode); save(); render(); break;
+    case 'timerSwitch': resetTimer(state.timer.mode === 'focus' ? 'break' : 'focus'); save(); render(); break;
+    case 'resetModal': breathForm(); break;
+    case 'beginBreath': doBreath(); break;
+    case 'stopBreath': clearInterval(breathTimer); breathTimer = null; if ($('#breath')) { $('#breathlabel').textContent = 'Stopped'; $('#breath').style.transform = 'scale(1)'; } break;
+
+    /* Settings and data */
+    case 'saveProfile': state.profile.name = val('#profileNameInput').slice(0, 40); save(); render(); toast('Name saved'); break;
+    case 'saveSettings': {
+      const f = Number(val('#focusDuration')), b = Number(val('#breakDuration'));
+      if (!Number.isInteger(f) || !Number.isInteger(b) || f < 1 || f > 240 || b < 1 || b > 120) return toast('Focus: 1–240 min. Break: 1–120 min.');
+      state.settings = { focus: f, break: b };
+      if (!state.timer.running && state.timer.seconds === state.timer.length) resetTimer(state.timer.mode);
+      save(); render(); toast('Durations saved'); break;
+    }
+    case 'saveChecklist': {
+      const items = [...new Set($('#checklistInput').value.split('\n').map(s => s.trim().slice(0, 200)).filter(Boolean))].slice(0, 15);
+      state.checklist = items; save(); render(); toast('Checklist saved'); break;
+    }
+    case 'export': {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' }), u = URL.createObjectURL(blob), link = document.createElement('a');
+      link.href = u; link.download = `fumo-backup-${today()}.json`; document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(u), 1000); toast('Backup downloaded'); break;
+    }
+    case 'import': $('#importfile').click(); break;
+    case 'saveSync': {
+      const repo = parseRepo(val('#syncRepo')), key = val('#syncKey');
+      if (!repo) return toast('Enter your data repository as name/repo');
+      if (key && !/^[\w-]{20,300}$/.test(key)) return toast('That doesn’t look like a GitHub access key');
+      if (!key && !getEditionKey()) return toast('Paste your access key too');
+      if (key) setEditionKey(key);
+      if (repo !== state.sync.repo) { local.set(SYNC_BASE, null); local.set(SYNC_SHA, null); }
+      state.sync.repo = repo; syncError = ''; persist(); local.set(SYNC_DIRTY, '1');
+      render(); toast('Syncing…'); syncNow(); break;
+    }
+    case 'syncNow': syncError = ''; render(); syncNow(); break;
+    case 'syncOff':
+      if (!confirm('Turn off sync on this device? Your records stay here and in your repository.')) break;
+      state.sync.repo = ''; [SYNC_BASE, SYNC_SHA, SYNC_DIRTY].forEach(k => local.set(k, null)); syncError = ''; persist(); render(); toast('Sync is off on this device'); break;
+    case 'factoryReset': if (confirm('Erase all FUMO data in this browser? This cannot be undone.')) { state = normalize(seed()); [SYNC_BASE, SYNC_SHA, SYNC_DIRTY].forEach(k => local.set(k, null)); save(); go('command'); toast('FUMO reset. Sync is off on this device.'); } break;
+  }
+}
+
+async function importFile(file) {
+  if (!file) return;
+  if (file.size > 5e6) return toast('That backup is too large');
+  try {
+    const next = normalize(JSON.parse(await file.text()));
+    if (!confirm(`Replace everything${syncOn() ? ' on every synced device' : ' here'} with this backup (${plural(next.projects.length, 'project')})?`)) return;
+    next.sync = state.sync;
+    state = next; state.timer.running = false; state.timer.end = 0;
+    save(); go('command'); toast('Backup restored');
+  } catch (e) { toast('Import failed: ' + e.message); }
+}
+
+/* ---------- Events ---------- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if (!el || el.matches('input[type=checkbox]')) return;
+  doAction(el.dataset.action, el.dataset.id, el);
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.matches('input[type=checkbox][data-action]')) doAction(el.dataset.action, el.dataset.id, el);
+  else if (el.dataset.change === 'timerProject') { state.timer.projectId = el.value; save(); }
+  else if (el.id === 'importfile') { importFile(el.files?.[0]); el.value = ''; }
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'globalSearch') searchResults(e.target.value);
+  else if (e.target.id === 'libSearch') { libraryQuery = e.target.value; const r = $('#libResults'); if (r) r.innerHTML = libraryResults(); }
+});
+/* A publisher photo that fails to load is removed rather than left as an empty box. */
+document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG') (t.closest('.figure') || t).remove(); }, true);
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); searchForm(); return; }
+  if (e.key === 'Escape') { if (modal) closeModal(); else if ($('#app').classList.contains('drawer-open')) setDrawer(false); return; }
+  if (e.key === 'Tab' && modal) { trapFocus(e); return; }
+  if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+  if (e.target.id === 'capture') { e.preventDefault(); doAction('capture'); }
+  else if (e.target.id === 'globalSearch') { e.preventDefault(); $('#searchResults .search-result')?.click(); }
+  else if (e.target.id === 'logVersion' || e.target.id === 'logNote') { e.preventDefault(); $('#modal [data-action=addLog]')?.click(); }
+  else if (modal && e.target.matches('#modal input.input')) { e.preventDefault(); $('#modal .modalactions .btn.primary')?.click(); }
+});
+$('#modalback').addEventListener('click', e => { if (e.target.id === 'modalback') closeModal(); });
+matchMedia(MOBILE).addEventListener?.('change', applyLayout);
+window.addEventListener('storage', e => {
+  if (e.key !== STORAGE_KEY || !e.newValue) return;
+  try { state = normalize(JSON.parse(e.newValue)); if (!modal) render(); } catch (err) {}
+});
+window.addEventListener('error', e => toast(`Something went wrong: ${e.message}`));
+
+/* ---------- Clock: timer, day rollover and a gentle refresh of the dashboard ---------- */
+function rollover() {
+  if (state.lastDay === today()) return false;
+  state.lastDay = today();
+  state.blocks.forEach(b => { b.done = false; });
+  save(); return true;
+}
+function tick() {
+  let dirty = rollover();
+  const t = state.timer;
+  if (t.running) {
+    if (timerSync()) dirty = true;
+    else {
+      const el = $('#timerclock'); if (el) el.textContent = clockText(t.seconds);
+      const b = $('#timerbar'); if (b) { const p = Math.round((1 - t.seconds / (t.length || 1)) * 100); b.firstElementChild.style.width = p + '%'; b.setAttribute('aria-valuenow', p); }
+    }
+  }
+  const m = new Date().getMinutes();
+  if (m !== lastMinute) {
+    $('#clock').textContent = new Date().toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
+    if (lastMinute !== -1 && m % 5 === 0 && page === 'command' && !modal) dirty = true;
+    if (state.editionPrefs.feedUrl && document.visibilityState !== 'hidden') refreshEdition(false);
+    if (m % 2 === 0 && syncOn() && document.visibilityState !== 'hidden') syncNow();
+    lastMinute = m;
+  }
+  if (dirty && !modal) render(); else { updateTimerChip(); setTitle(); }
+}
+
+
+/* ---------- Sync: your records travel between devices through a private GitHub repository ---------- */
+/* The key and the last-synced copy stay on this device; only the records themselves are shared. */
+const SYNC_FILE = 'fumo-data.json', SYNC_BASE = 'fumo.sync.base', SYNC_SHA = 'fumo.sync.sha', SYNC_DIRTY = 'fumo.sync.dirty';
+const COLLECTIONS = ['blocks', 'projects', 'habits', 'inbox', 'workouts', 'sessions', 'waiting', 'renewals', 'reading'];
+const local = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
+let syncBusy = false, syncAgain = false, syncTimer = null, syncLast = 0, syncError = '';
+const syncOn = () => !!(state.sync.repo && getEditionKey());
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+/* The running timer's countdown changes every second; it is not an edit. */
+const snapshot = () => JSON.stringify({ ...state, timer: { ...state.timer, seconds: 0 } });
+const b64encode = text => { const bytes = new TextEncoder().encode(text); let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(bin); };
+const b64decode = b64 => new TextDecoder().decode(Uint8Array.from(atob(String(b64).replace(/\s/g, '')), c => c.charCodeAt(0)));
+
+/* Three-way merge. A record changed on only one side keeps that change, deletions included.
+   A record changed on both sides keeps this device's version, and an edit always beats a deletion. */
+function mergeById(base, mine, theirs) {
+  const B = new Map(base.map(x => [x.id, x])), M = new Map(mine.map(x => [x.id, x])), T = new Map(theirs.map(x => [x.id, x]));
+  const pick = id => { const b = B.get(id), m = M.get(id), t = T.get(id); return same(m, b) ? t : same(t, b) ? m : m ?? t; };
+  return [...theirs.map(x => x.id), ...mine.map(x => x.id).filter(id => !T.has(id))].map(pick).filter(Boolean);
+}
+function mergeStates(base, mine, theirs) {
+  const out = {};
+  for (const k of new Set([...Object.keys(mine), ...Object.keys(theirs)])) {
+    out[k] = COLLECTIONS.includes(k) ? mergeById(base?.[k] || [], mine[k] || [], theirs[k] || [])
+      : k === 'editionRead' ? { ...theirs[k], ...mine[k] }
+      : same(mine[k], base?.[k]) ? theirs[k] : mine[k];
+  }
+  return out;
+}
+function syncHttpError(status, writing) {
+  if (status === 401) return 'GitHub refused your access key — it may have expired. Paste a new one in Settings → Sync.';
+  if (status === 403) return writing ? 'Your key can read but not save. Give it Contents: Read and write on your data repository.' : 'GitHub refused access (403). Check the key can use your data repository.';
+  if (status === 404) return `Couldn’t find ${state.sync.repo}. Check the name, and that your key includes this repository.`;
+  return `GitHub answered ${status}. FUMO will try again shortly.`;
+}
+function gh(method, body) {
+  return fetch(`https://api.github.com/repos/${state.sync.repo}/contents/${SYNC_FILE}`, {
+    method, cache: 'no-store', body: body && JSON.stringify(body),
+    headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', Authorization: `Bearer ${getEditionKey()}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }
+  });
+}
+function scheduleSync(ms = 2500) { if (!syncOn()) return; clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, ms); }
+async function syncNow() {
+  if (!syncOn()) return;
+  if (syncBusy) { syncAgain = true; return; }
+  syncBusy = true;
+  const startedWith = JSON.stringify(state), startedSnap = snapshot();
+  try {
+    const res = await gh('GET');
+    if (!res.ok && res.status !== 404) throw Error(syncHttpError(res.status, false));
+    let theirs = null, sha = '';
+    if (res.ok) { const j = await res.json(); sha = j.sha; theirs = normalize(JSON.parse(b64decode(j.content))); }
+    const baseRaw = local.get(SYNC_BASE), base = baseRaw ? JSON.parse(baseRaw) : null, mine = JSON.parse(startedWith);
+    const dirty = local.get(SYNC_DIRTY) === '1';
+    let next = mine, notice = '';
+    if (theirs && sha !== local.get(SYNC_SHA)) {
+      if (!base) {
+        /* First sync on this device while another device already saved: theirs wins, this device's copy is kept aside. */
+        local.set(`${STORAGE_KEY}.before-sync-${Date.now()}`, startedWith);
+        next = theirs; notice = 'Loaded your FUMO from sync. This device’s earlier data was kept aside.';
+      } else next = dirty ? normalize(mergeStates(base, mine, theirs)) : theirs;
+    }
+    next.sync = { ...next.sync, repo: state.sync.repo };
+    if (!theirs || (dirty && !same(next, theirs))) {
+      const text = JSON.stringify(next);
+      if (text.length > 900000) throw Error('Your FUMO data is too large to sync (over 900 KB). Export a backup and archive old records.');
+      const put = await gh('PUT', { message: `FUMO sync ${new Date().toISOString().slice(0, 16)}`, content: b64encode(text), ...(sha ? { sha } : {}) });
+      /* Another device saved between our read and our write: read again and merge. */
+      if (put.status === 409 || put.status === 422) { syncAgain = true; throw Error(''); }
+      if (!put.ok) throw Error(syncHttpError(put.status, true));
+      sha = (await put.json()).content.sha;
+    }
+    local.set(SYNC_SHA, sha); local.set(SYNC_BASE, JSON.stringify(next));
+    /* Edits made while we were talking to GitHub are applied on top of the synced result. */
+    const now = JSON.stringify(state);
+    if (snapshot() !== startedSnap) { state = normalize(mergeStates(mine, JSON.parse(now), next)); syncAgain = true; local.set(SYNC_DIRTY, '1'); }
+    else { state = next; local.set(SYNC_DIRTY, null); }
+    persist();
+    syncLast = Date.now(); syncError = '';
+    if ((JSON.stringify(state) !== now || page === 'settings') && !modal) render();
+    if (notice) toast(notice);
+  } catch (e) {
+    if (e.message && e.message !== syncError) { syncError = /fetch|network|load failed/i.test(e.message) ? 'Offline — changes are saved here and will sync when you’re back online.' : e.message; if (page === 'settings' && !modal) render(); }
+  } finally {
+    syncBusy = false;
+    if (syncAgain) { syncAgain = false; scheduleSync(1000); }
+  }
+}
+function syncStatusText() {
+  if (!state.sync.repo) return 'Off — your records stay in this browser.';
+  if (!getEditionKey()) return 'Waiting for your access key.';
+  if (syncError) return syncError;
+  return syncLast ? `On · last synced ${timeAgo(new Date(syncLast).toISOString())}` : 'On · connecting…';
+}
+function syncPanel() {
+  const repo = state.sync.repo, owner = editionRepo().split('/')[0], guess = owner ? `${owner}/fumo-data` : '';
+  return panel('Sync across devices', esc(syncStatusText()), `<div class="fields">
+    ${field('syncRepo', 'Data repository', repo || guess, 'text', 'placeholder="your-name/fumo-data" maxlength="140" autocomplete="off" spellcheck="false"')}
+    ${field('syncKey', 'Access key', '', 'password', `placeholder="${getEditionKey() ? 'Saved — leave empty to keep it' : 'github_pat_…'}" maxlength="300" autocomplete="off" spellcheck="false"`)}
+    <p class="hint">A private GitHub repository holds your records so your phone and computer stay in step. The key is the same one The Daily Edition uses and needs <em>Contents: Read and write</em> on this repository. It stays on each device and is never synced or backed up.</p>
+  </div><div class="actions mt">${btn(repo ? 'Save' : 'Turn on sync', 'saveSync', { cls: 'primary' })}${repo ? btn('Sync now', 'syncNow', { ic: 'reset' }) + btn('Turn off', 'syncOff', { cls: 'quiet' }) : ''}</div>`);
+}
+
+/* ---------- Start ---------- */
+$$('[data-icon]').forEach(e => e.insertAdjacentHTML('afterbegin', icon(e.dataset.icon)));
+applyLayout();
+timerSync();
+rollover();
+save();
+render();
+if (startupNotice) toast(startupNotice);
+refreshEdition(false);
+syncNow();
+setInterval(tick, 1000);
+document.addEventListener('visibilitychange', () => { if (syncOn()) syncNow(); });
+/* Installable app: keeps a copy of FUMO itself for offline use (not on file:// pages). */
+if ('serviceWorker' in navigator && window.isSecureContext && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+/* Small hook for testing and debugging from the console. */
+window.FUMO = { get state() { return state; }, set state(v) { state = normalize(v); render(); }, normalize, nextMove, toUrl, parseLinks, parseSkills, inLastDays, timerSync, doAction, go, render, PAGES, setPage: p => { page = p; }, normalizeEdition, refreshEdition, mergeStates, syncNow, b64encode, b64decode, save, frontPage, editionData, setEditionView: v => { editionView = v; }, get editionCache() { return editionCache; } };
+})();
+</script>
+</body>
+</html>
