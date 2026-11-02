@@ -363,6 +363,15 @@ textarea{min-height:90px;resize:vertical}
 .insight{margin-top:18px;padding:14px 16px;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface-2)}
 .insight p:not(.eyebrow):not(.hint){font-size:14px;line-height:1.6;color:var(--text-2)}
 .insight .listrow:last-child{padding-bottom:0}
+.markets{margin:0 0 26px}
+.markets ul{display:flex;gap:8px;overflow-x:auto;list-style:none;margin:0 0 8px;padding:0;scrollbar-width:none}
+.markets ul::-webkit-scrollbar{display:none}
+.markets li{flex:0 0 auto;display:grid;grid-template-columns:auto auto;gap:2px 10px;padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);font-variant-numeric:tabular-nums}
+.markets li.stale{opacity:.55}
+.mk-name{grid-column:1/-1;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.mk-px{font-size:15px;font-weight:550;color:var(--text)}
+.mk-chg{font-size:12px;align-self:center;color:var(--muted)}
+.mk-chg.up{color:var(--good)}.mk-chg.down{color:var(--bad)}
 .radar{margin-bottom:26px;padding:14px 18px 6px;border:1px solid var(--warn);border-radius:12px;background:var(--surface-2)}
 .radar .section-label{border-bottom:0;padding-bottom:2px;color:var(--warn)}
 .radar .story-card.brief:first-of-type{border-top:0}
@@ -483,7 +492,7 @@ html::-webkit-scrollbar, .sidebar::-webkit-scrollbar { display: none; }
       </div>
     </header>
     <div id="page"></div>
-    <footer class="footer"><span>FUMO · V0.6</span><span>Private · Sync and backups in Settings</span></footer>
+    <footer class="footer"><span>FUMO · V0.7</span><span>Private · Sync and backups in Settings</span></footer>
   </main>
 </div>
 <div class="modalback" id="modalback">
@@ -1000,7 +1009,8 @@ function normalizeEdition(e) {
     generated: isoOr(e.generated) || new Date().toISOString(), refreshMinutes: int(e.refreshMinutes, 30, 5, 1440),
     desks: desks.length ? desks : DESKS_DEF,
     sources: records(e.sources).slice(0, 300).map(s => ({ name: str(s.name, 80), desk: str(s.desk, 30), ok: !!s.ok, items: int(s.items, 0, 0, 1e4), error: str(s.error, 160) })),
-    stories: records(e.stories).slice(0, 2000).map(s => ({ id: typeof s.id === 'string' && /^[\w-]{1,40}$/.test(s.id) ? s.id : '', desk: str(s.desk, 30), title: str(s.title, 220).trim(), url: safeHttp(str(s.url, 1500)), source: str(s.source, 80) || 'Source', published: isoOr(s.published) || isoOr(s.firstSeen), firstSeen: isoOr(s.firstSeen) || isoOr(s.published), summary: str(s.summary, 320).trim(), image: safeHttp(str(s.image, 1500)), weight: num(s.weight, 1, 0.1, 5), insight: s.insight && typeof s.insight === 'object' && str(s.insight.what, 260).trim().length >= 12 ? { what: str(s.insight.what, 260).trim(), why: str(s.insight.why, 320).trim(), model: str(s.insight.model, 40) } : null })).filter(s => s.id && s.title && s.url && s.published)
+    stories: records(e.stories).slice(0, 2000).map(s => ({ id: typeof s.id === 'string' && /^[\w-]{1,40}$/.test(s.id) ? s.id : '', desk: str(s.desk, 30), title: str(s.title, 220).trim(), url: safeHttp(str(s.url, 1500)), source: str(s.source, 80) || 'Source', published: isoOr(s.published) || isoOr(s.firstSeen), firstSeen: isoOr(s.firstSeen) || isoOr(s.published), summary: str(s.summary, 320).trim(), image: safeHttp(str(s.image, 1500)), weight: num(s.weight, 1, 0.1, 5), insight: s.insight && typeof s.insight === 'object' && str(s.insight.what, 260).trim().length >= 12 ? { what: str(s.insight.what, 260).trim(), why: str(s.insight.why, 320).trim(), model: str(s.insight.model, 40) } : null })).filter(s => s.id && s.title && s.url && s.published),
+    markets: records(Array.isArray(e.markets) ? e.markets : e.markets?.items).slice(0, 12) /* array once cached */.map(i => ({ name: str(i.name, 30).trim(), price: Number(i.price), pct: typeof i.pct === 'number' && Number.isFinite(i.pct) ? i.pct : null, at: isoOr(i.at), source: str(i.source, 30), stale: !!i.stale })).filter(i => i.name && Number.isFinite(i.price) && i.price > 0)
   };
 }
 function loadEditionCache() {
@@ -1198,12 +1208,26 @@ function renderFront(ed) {
   <section class="desks-grid" aria-label="Across the desks">${desks.map(({ desk: d, stories }) => `<div class="desk-col"><h2 class="desk-name"><button type="button" class="text-button" data-action="editionView" data-id="${esc(d.id)}">${esc(d.name)}</button></h2>${stories.map((s, i) => storyCard(s, i === 0 ? 'thumb' : 'brief')).join('')}</div>`).join('')}</section>
   <p class="end-note">That’s the edition.${ed.sample ? '' : ` A fresh one is collected every ${ed.refreshMinutes} minutes.`}</p>`;
 }
+/* Delayed quotes the headline service collects; FUMO never talks to a market-data provider itself. */
+function marketStrip(ed) {
+  const items = ed.markets || [];
+  if (!items.length) return '';
+  const fmt = (n, dp) => n.toLocaleString(LOCALE, { minimumFractionDigits: dp, maximumFractionDigits: dp });
+  const newest = items.map(i => i.at).filter(Boolean).sort().pop();
+  const via = [...new Set(items.filter(i => !i.stale).map(i => i.source).filter(Boolean))].join(' and ');
+  return `<section class="markets" aria-label="Markets, delayed"><ul>${items.map(i => {
+    const dir = i.pct == null ? '' : i.pct > 0 ? 'up' : i.pct < 0 ? 'down' : '';
+    const pct = i.pct == null ? '' : `<span class="mk-chg ${dir}">${i.pct > 0 ? '▲' : i.pct < 0 ? '▼' : ''}${fmt(Math.abs(i.pct), 2)}%</span>`;
+    return `<li${i.stale ? ' class="stale" title="Couldn’t refresh — last good quote"' : ''}><span class="mk-name">${esc(i.name)}</span><span class="mk-px">${fmt(i.price, i.price < 50 ? 4 : 2)}</span>${pct}</li>`;
+  }).join('')}</ul><p class="micro">Delayed${via ? ` · ${esc(via)}` : ''}${newest ? ` · as of ${timeAgo(newest)}` : ''}. Not for trading decisions.</p></section>`;
+}
 function renderDesk(ed, id) {
   const d = deskList(ed).find(x => x.id === id) || { id, name: deskName(id), coverage: '' };
   const list = ed.stories.filter(s => s.desk === id).sort((a, b) => Date.parse(b.published) - Date.parse(a.published));
   const lead = (state.editionPrefs.images && list.slice(0, 4).find(s => s.image)) || list[0];
   const n = DESK_IDS.indexOf(id);
   return `<section class="desk-head"><p class="eyebrow">${n >= 0 ? `Desk ${pad(n + 1)}` : 'Desk'}${deskWeight(id) === 0 ? ' · hidden from your front page' : ''}</p><h2 class="desk-title">${esc(d.name)}</h2>${d.coverage ? `<p class="lead">${esc(d.coverage)}</p>` : ''}</section>`
+    + (id === 'wall' ? marketStrip(ed) : '')
     + (lead ? `<div class="desk-lead">${storyCard(lead, 'deskLead')}</div><div class="desk-list">${list.filter(s => s !== lead).slice(0, 30).map(s => storyCard(s, 'brief')).join('')}</div>` : '<div class="panel empty">Nothing on this desk right now.</div>');
 }
 function libraryResults() {
