@@ -435,6 +435,11 @@ textarea{min-height:90px;resize:vertical}
   .capture{flex-direction:column}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
+
+/* No visible scrollbar on the page or the sidebar; wheel, trackpad, touch and keys still scroll. Smaller scroll areas get a slim one in FUMO's colours. */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+html, .sidebar { scrollbar-width: none; }
+html::-webkit-scrollbar, .sidebar::-webkit-scrollbar { display: none; }
 </style>
 </head>
 <body>
