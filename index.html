@@ -492,7 +492,7 @@ html::-webkit-scrollbar, .sidebar::-webkit-scrollbar { display: none; }
       </div>
     </header>
     <div id="page"></div>
-    <footer class="footer"><span>FUMO · V0.7</span><span>Private · Sync and backups in Settings</span></footer>
+    <footer class="footer"><span>FUMO · V0.8</span><span>Private · Sync and backups in Settings</span></footer>
   </main>
 </div>
 <div class="modalback" id="modalback">
@@ -574,7 +574,7 @@ const DESKS_DEF = [
 const DESK_IDS = DESKS_DEF.map(d => d.id);
 const DEFAULT_WEIGHTS = { cars: 3, wall: 3, time: 2, tech: 3, fashion: 2, after: 2, private: 2 };
 /* Library entries can also be unfiled. */
-const DESKS = [...DESKS_DEF.map(d => [d.id, d.name]), ['work', 'Unfiled']];
+const deskOptions = () => [...allDesks().map(d => [d.id, d.name]), ['work', 'Unfiled']];
 const deskName = k => (editionData()?.desks.find(d => d.id === k) || DESKS_DEF.find(d => d.id === k))?.name || (k === 'work' ? 'Unfiled' : 'The Edition');
 const EDITION_KEY = 'fumo.edition.cache', EDITION_SECRET = 'fumo.edition.key';
 const DEFAULT_CHECKLIST = ['Tested at phone width', 'Sample data looks real — no lorem ipsum', 'No leftover names or branding from other clients', 'Opens cleanly in a fresh browser', 'Talking points and the next ask are ready'];
@@ -647,7 +647,7 @@ function normalize(o) {
     sessions: records(o.sessions).map(s => ({ id: okId(s.id), date: dayOr(s.date, today()), minutes: int(s.minutes, 0, 0, 600), projectId: str(s.projectId, 80) })).filter(s => s.minutes > 0),
     waiting: records(o.waiting).map(w => ({ id: okId(w.id), who: str(w.who, 80) || 'Someone', what: str(w.what, 300), projectId: str(w.projectId, 80), since: dayOr(w.since, today()), nudged: dayOr(w.nudged), done: !!w.done, resolved: dayOr(w.resolved) })),
     renewals: records(o.renewals).map(r => ({ id: okId(r.id), name: str(r.name, 120) || 'Renewal', kind: oneOf(r.kind, RENEWAL_KINDS, 'Other'), date: dayOr(r.date), note: str(r.note, 300) })).filter(r => r.date),
-    reading: records(o.reading).map(r => ({ id: okId(r.id), url: safeUrl(str(r.url, 800)), title: str(r.title, 200), desk: oneOf(r.desk, DESKS.map(d => d[0]), 'work'), added: dayOr(r.added, today()), read: !!r.read, source: str(r.source, 80), published: str(r.published, 40), summary: str(r.summary, 320), storyId: /^[\w-]{1,40}$/.test(r.storyId) ? r.storyId : '' })).filter(r => r.url),
+    reading: records(o.reading).map(r => ({ id: okId(r.id), url: safeUrl(str(r.url, 800)), title: str(r.title, 200), desk: /^[\w-]{1,30}$/.test(r.desk) ? r.desk : 'work', added: dayOr(r.added, today()), read: !!r.read, source: str(r.source, 80), published: str(r.published, 40), summary: str(r.summary, 320), storyId: /^[\w-]{1,40}$/.test(r.storyId) ? r.storyId : '' })).filter(r => r.url),
     editionPrefs: (() => {
       const p = plainObject(o.editionPrefs), w = plainObject(p.weights), feed = safeUrl(str(p.feedUrl, 500));
       const extra = Object.entries(w).filter(([k]) => !DESK_IDS.includes(k) && /^[\w-]{1,30}$/.test(k)).slice(0, 20).map(([k, v]) => [k, int(v, 2, 0, 3)]);
@@ -1204,7 +1204,7 @@ function renderFront(ed) {
   if (!hero) return '<div class="panel empty">No stories in your enabled desks right now. Turn desks back on in edition settings.</div>';
   /* Topic alerts surface even from desks you have switched off: you asked for them by name. */
   const radar = state.editionPrefs.alerts.length ? ed.stories.filter(s => matchStory(s).alerts.length).sort((a, b) => Date.parse(b.published) - Date.parse(a.published)).slice(0, 5) : [];
-  return `${radar.length ? `<section class="radar" aria-label="Your topic alerts"><p class="section-label">On your radar</p>${radar.map(s => storyCard(s, 'brief')).join('')}</section>` : ''}<section class="front" aria-label="Front page"><div class="front-lead">${storyCard(hero, 'splash')}</div><div class="front-top"><p class="section-label">Top stories</p>${top.map(s => storyCard(s, 'top')).join('')}</div></section>
+  return `${marketStrip(ed)}${radar.length ? `<section class="radar" aria-label="Your topic alerts"><p class="section-label">On your radar</p>${radar.map(s => storyCard(s, 'brief')).join('')}</section>` : ''}<section class="front" aria-label="Front page"><div class="front-lead">${storyCard(hero, 'splash')}</div><div class="front-top"><p class="section-label">Top stories</p>${top.map(s => storyCard(s, 'top')).join('')}</div></section>
   <section class="desks-grid" aria-label="Across the desks">${desks.map(({ desk: d, stories }) => `<div class="desk-col"><h2 class="desk-name"><button type="button" class="text-button" data-action="editionView" data-id="${esc(d.id)}">${esc(d.name)}</button></h2>${stories.map((s, i) => storyCard(s, i === 0 ? 'thumb' : 'brief')).join('')}</div>`).join('')}</section>
   <p class="end-note">That’s the edition.${ed.sample ? '' : ` A fresh one is collected every ${ed.refreshMinutes} minutes.`}</p>`;
 }
@@ -1225,7 +1225,7 @@ function renderDesk(ed, id) {
   const d = deskList(ed).find(x => x.id === id) || { id, name: deskName(id), coverage: '' };
   const list = ed.stories.filter(s => s.desk === id).sort((a, b) => Date.parse(b.published) - Date.parse(a.published));
   const lead = (state.editionPrefs.images && list.slice(0, 4).find(s => s.image)) || list[0];
-  const n = DESK_IDS.indexOf(id);
+  const n = deskList(ed).findIndex(x => x.id === id);
   return `<section class="desk-head"><p class="eyebrow">${n >= 0 ? `Desk ${pad(n + 1)}` : 'Desk'}${deskWeight(id) === 0 ? ' · hidden from your front page' : ''}</p><h2 class="desk-title">${esc(d.name)}</h2>${d.coverage ? `<p class="lead">${esc(d.coverage)}</p>` : ''}</section>`
     + (id === 'wall' ? marketStrip(ed) : '')
     + (lead ? `<div class="desk-lead">${storyCard(lead, 'deskLead')}</div><div class="desk-list">${list.filter(s => s !== lead).slice(0, 30).map(s => storyCard(s, 'brief')).join('')}</div>` : '<div class="panel empty">Nothing on this desk right now.</div>');
@@ -1412,7 +1412,7 @@ function renewalForm(r) {
   showModal(r ? 'Edit renewal' : 'New renewal', `<div class="fields">${field('rname', 'What renews', r?.name || '', 'text', 'maxlength="120" placeholder="mail domain, client VPS, API key…"')}<div class="fields field2">${selectField('rkind', 'Kind', RENEWAL_KINDS, r?.kind || 'Domain')}${field('rdate', 'Renewal date', r?.date || '', 'date')}</div>${field('rnote', 'Note', r?.note || '', 'text', 'maxlength="300" placeholder="Registrar, who pays, account"')}</div><input type="hidden" id="rid" value="${esc(r?.id || '')}">${modalFooter('saveRenewal', 'Save', r ? btn('Renewed +1 year', 'renewYear', { cls: 'small', id: r.id }) + ' ' + btn('Delete', 'deleteRenewal', { cls: 'danger small', id: r.id }) : '')}`);
 }
 function readingForm() {
-  showModal('Save a link', `<div class="fields">${field('lurl', 'Link', '', 'url', 'placeholder="https://…" maxlength="800"')}${field('ltitle', 'Title (optional)', '', 'text', 'maxlength="200"')}${selectField('ldesk', 'Desk', DESKS, DESK_IDS.includes(editionView) ? editionView : 'work')}</div>${modalFooter('saveReading', 'Save link')}`);
+  showModal('Save a link', `<div class="fields">${field('lurl', 'Link', '', 'url', 'placeholder="https://…" maxlength="800"')}${field('ltitle', 'Title (optional)', '', 'text', 'maxlength="200"')}${selectField('ldesk', 'Desk', deskOptions(), allDesks().some(d => d.id === editionView) ? editionView : 'work')}</div>${modalFooter('saveReading', 'Save link')}`);
 }
 function routeForm(n) {
   const opts = openProjects().sort(projectOrder);
@@ -1672,7 +1672,7 @@ function doAction(a, key, el) {
       const url = toUrl(val('#lurl'));
       if (!url) return toast('That doesn’t look like a web link');
       if (state.reading.some(r => r.url === url)) return toast('Already in your reading list');
-      state.reading.push({ id: uid(), url, title: val('#ltitle').slice(0, 200), desk: oneOf(val('#ldesk'), DESKS.map(d => d[0]), 'work'), added: today(), read: false, source: hostOf(url), published: '', summary: '', storyId: '' });
+      state.reading.push({ id: uid(), url, title: val('#ltitle').slice(0, 200), desk: oneOf(val('#ldesk'), deskOptions().map(d => d[0]), 'work'), added: today(), read: false, source: hostOf(url), published: '', summary: '', storyId: '' });
       save(); closeModal(); render(); toast('Saved to your library'); break;
     }
     case 'openReading': x = state.reading.find(r => r.id === key); if (x && !x.read) { x.read = true; save(); setTimeout(render, 400); } break;
@@ -1686,7 +1686,7 @@ function doAction(a, key, el) {
     case 'saveStory': {
       x = findStory(key);
       if (!x || !x.url) return toast('Example stories can’t be saved');
-      if (!state.reading.some(r => r.storyId === x.id || r.url === x.url)) state.reading.push({ id: uid(), url: x.url, title: x.title, desk: DESK_IDS.includes(x.desk) ? x.desk : 'work', added: today(), read: true, source: x.source, published: x.published, summary: x.summary, storyId: x.id });
+      if (!state.reading.some(r => r.storyId === x.id || r.url === x.url)) state.reading.push({ id: uid(), url: x.url, title: x.title, desk: x.desk || 'work', added: today(), read: true, source: x.source, published: x.published, summary: x.summary, storyId: x.id });
       save(); render(); storyModal(x); toast('Saved to your library'); break;
     }
     case 'linkStoryToProject': {
