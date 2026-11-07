@@ -244,6 +244,12 @@ textarea{min-height:90px;resize:vertical}
 .chips button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .projectcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .project{display:flex;flex-direction:column;gap:14px;min-width:0;padding:20px;border:1px solid var(--border-strong);border-radius:14px;background:var(--surface-2)}
+.board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(170px,1fr);gap:12px;overflow-x:auto;padding-bottom:6px}
+.bcol{display:flex;flex-direction:column;gap:10px;min-height:140px;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+.bcard{display:flex;flex-direction:column;gap:8px;min-width:0;padding:14px;border:1px solid var(--border-strong);border-radius:12px;background:var(--surface-2);cursor:grab}
+.bcard h3{font-size:15px;overflow-wrap:anywhere}
+.bcard .row{flex-wrap:wrap;gap:6px}
+.bselect{width:auto;min-height:32px;padding:4px 8px;font-size:12px}
 .client{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--faint);margin-bottom:3px}
 .project h3{font-size:18px;font-weight:550;letter-spacing:-.4px;overflow-wrap:anywhere}
 .next{border-left:2px solid var(--border-strong);padding-left:12px}
@@ -492,7 +498,7 @@ html::-webkit-scrollbar, .sidebar::-webkit-scrollbar { display: none; }
       </div>
     </header>
     <div id="page"></div>
-    <footer class="footer"><span>FUMO · V0.8</span><span>Private · Sync and backups in Settings</span></footer>
+    <footer class="footer"><span>FUMO · V0.9</span><span>Private · Sync and backups in Settings</span></footer>
   </main>
 </div>
 <div class="modalback" id="modalback">
@@ -553,7 +559,7 @@ function toUrl(input) {
 const hostOf = u => { try { const x = new URL(u); return x.protocol === 'file:' ? 'Local folder' : x.protocol === 'mailto:' ? 'Email' : x.hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
 
 /* ---------- Constants ---------- */
-const STORAGE_KEY = 'fumo.personal.v01', UI_THEME = 'fumo.ui.theme', UI_SIDEBAR = 'fumo.ui.sidebar';
+const STORAGE_KEY = 'fumo.personal.v01', UI_THEME = 'fumo.ui.theme', UI_SIDEBAR = 'fumo.ui.sidebar', UI_PROJECTS = 'fumo.ui.projectView';
 const PHASES = ['Morning Deep Focus', 'Midday Operational Sync', 'Afternoon Sprint', 'Evening Wind-Down'];
 const STATUSES = ['Active', 'Review', 'Waiting', 'Blocked', 'Parked', 'Completed'];
 const STATUS_TONE = { Active: 'good', Review: 'warn', Waiting: 'warn', Blocked: 'bad', Completed: 'good' };
@@ -678,6 +684,8 @@ let page = 'command', clientFilter = 'all';
 let modal = null, modalOpenerKey = null, breathTimer = null, toastTimer = null, toastUndo = null, lastMinute = -1;
 let prefCollapsed = false;
 try { prefCollapsed = localStorage.getItem(UI_SIDEBAR) === 'collapsed'; } catch (e) {}
+let projectView = 'cards';
+try { if (localStorage.getItem(UI_PROJECTS) === 'board') projectView = 'board'; } catch (e) {}
 
 function persist() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -914,6 +922,22 @@ function projectCard(p) {
   ${p.links.length ? `<div class="links">${linkPills(p.links, 3)}</div>` : ''}
   <div class="bottom"><span class="micro">${esc(p.priority)} priority</span><div class="row" style="gap:2px">${btn('Open', 'openProject', { cls: 'quiet small', id: p.id })}${btn('Edit', 'editProject', { cls: 'quiet small', id: p.id })}${btn('Archive', 'archiveProject', { cls: 'quiet small', id: p.id })}</div></div></article>`;
 }
+/* Board view: one column per status. Drag a card, or use its status menu (keyboard and touch). */
+function boardCard(p) {
+  return `<article class="bcard" draggable="true" data-drag="${p.id}"><p class="client">${esc(clientOf(p))}</p><h3>${esc(p.title)}</h3>${p.next ? `<p class="micro">${esc(p.next)}</p>` : ''}
+  ${p.blocker ? `<p class="blocker">${icon('flag')}${esc(p.blocker)}</p>` : ''}
+  <div class="meta-row">${p.due ? `<span class="pill ${dueClass(p.due)}">${dueText(p.due)}</span>` : ''}<span class="micro">${esc(p.priority)} priority</span></div>
+  <div class="row between"><label class="sr-only" for="st-${p.id}">Status of ${esc(p.title)}</label><select id="st-${p.id}" class="bselect" data-change="projectStatus" data-id="${p.id}">${STATUSES.map(s => `<option${s === p.status ? ' selected' : ''}>${s}</option>`).join('')}</select>${btn('Open', 'openProject', { cls: 'quiet small', id: p.id })}</div></article>`;
+}
+const projectBoard = list => `<div class="board">${STATUSES.map(s => {
+  const col = list.filter(p => p.status === s);
+  return `<section class="bcol" data-drop="${s}" aria-label="${s}: ${plural(col.length, 'project')}"><h2 class="eyebrow">${s} <span class="faint">${col.length}</span></h2>${col.map(boardCard).join('') || '<p class="hint">Drop a project here</p>'}</section>`;
+}).join('')}</div>`;
+function moveProject(id, status) {
+  const p = projectById(id);
+  if (!p || p.status === status || !STATUSES.includes(status)) return;
+  withUndo(`${p.title} moved to ${status}`, () => { p.status = status; });
+}
 function renderProjects() {
   const all = state.projects.filter(p => !p.archived);
   const clients = [...new Set(all.map(clientOf))].sort((a, b) => (a === 'No client') - (b === 'No client') || a.localeCompare(b));
@@ -925,9 +949,9 @@ function renderProjects() {
   const weekBody = Object.keys(byClient).length ? `<div class="barlist">${Object.entries(byClient).sort((a, b) => b[1] - a[1]).map(([k, m]) => `<div><div class="row between"><span>${esc(k)}</span><span class="faint">${hours(m)}h</span></div>${bar(m / maxC * 100)}</div>`).join('')}</div>` : '<div class="empty">Start a focus session on a project to see where your week goes.</div>';
   const due = all.filter(p => p.due && p.status !== 'Completed').sort((a, b) => a.due.localeCompare(b.due)).slice(0, 6);
   const dueBody = due.length ? due.map(p => `<div class="listrow"><div class="flex1"><div class="itemname">${esc(p.title)}</div><div class="itemdetail">${esc(clientOf(p))}</div></div><span class="pill ${dueClass(p.due)}">${dueText(p.due)}</span></div>`).join('') : '<div class="empty">No deadlines yet. Add a due date when you edit a project.</div>';
-  return head('Execution / Clients & builds', 'Projects in motion.', 'One clear next action per project, grouped by who it’s for.', btn('Archive', 'archiveModal', { ic: 'archive' }) + btn('New project', 'newProject', { cls: 'primary', ic: 'plus' }))
+  return head('Execution / Clients & builds', 'Projects in motion.', 'One clear next action per project, grouped by who it’s for.', btn(projectView === 'board' ? 'Cards' : 'Board', 'projectView', { ic: 'projects' }) + btn('Archive', 'archiveModal', { ic: 'archive' }) + btn('New project', 'newProject', { cls: 'primary', ic: 'plus' }))
     + `<div class="chips" role="group" aria-label="Filter by client">${['all', ...clients].map(c => `<button type="button" data-action="clientFilter" data-id="${esc(c)}" aria-pressed="${clientFilter === c}">${c === 'all' ? 'All clients' : esc(c)}</button>`).join('')}</div>`
-    + (list.length ? `<div class="projectcards">${list.map(projectCard).join('')}</div>` : '<div class="panel empty">No projects here. Add one to begin.</div>')
+    + (!list.length ? '<div class="panel empty">No projects here. Add one to begin.</div>' : projectView === 'board' ? projectBoard(list) : `<div class="projectcards">${list.map(projectCard).join('')}</div>`)
     + `<div class="grid cols2 mt">${panel('Focus this week', 'Hours logged by client, last 7 days', weekBody)}${panel('Coming up', 'Nearest deadlines', dueBody)}</div>`
     + `<div id="renewals" class="mt">${renewalsPanel()}</div>`;
 }
@@ -1617,6 +1641,7 @@ function doAction(a, key, el) {
     }
     case 'restoreProject': x = projectById(key); if (x) { x.archived = false; save(); closeModal(); render(); toast(`${x.title} restored`); } break;
     case 'clientFilter': clientFilter = key; render(); break;
+    case 'projectView': projectView = projectView === 'board' ? 'cards' : 'board'; local.set(UI_PROJECTS, projectView); render(); break;
     case 'toggleCheck': {
       const p = projectById(key), item = state.checklist[Number(el?.dataset.item)];
       if (!p || !item) break;
@@ -1893,12 +1918,16 @@ document.addEventListener('change', e => {
   const el = e.target;
   if (el.matches('input[type=checkbox][data-action]')) doAction(el.dataset.action, el.dataset.id, el);
   else if (el.dataset.change === 'timerProject') { state.timer.projectId = el.value; save(); }
+  else if (el.dataset.change === 'projectStatus') moveProject(el.dataset.id, el.value);
   else if (el.id === 'importfile') { importFile(el.files?.[0]); el.value = ''; }
 });
 document.addEventListener('input', e => {
   if (e.target.id === 'globalSearch') searchResults(e.target.value);
   else if (e.target.id === 'libSearch') { libraryQuery = e.target.value; const r = $('#libResults'); if (r) r.innerHTML = libraryResults(); }
 });
+document.addEventListener('dragstart', e => { const c = e.target.closest?.('[data-drag]'); if (c) { e.dataTransfer.setData('text/plain', c.dataset.drag); e.dataTransfer.effectAllowed = 'move'; } });
+document.addEventListener('dragover', e => { if (e.target.closest?.('[data-drop]')) e.preventDefault(); });
+document.addEventListener('drop', e => { const col = e.target.closest?.('[data-drop]'); if (!col) return; e.preventDefault(); moveProject(e.dataTransfer.getData('text/plain'), col.dataset.drop); });
 /* A publisher photo that fails to load is removed rather than left as an empty box. */
 document.addEventListener('error', e => { const t = e.target; if (t && t.tagName === 'IMG') (t.closest('.figure') || t).remove(); }, true);
 document.addEventListener('keydown', e => {
