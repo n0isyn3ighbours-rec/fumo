@@ -527,7 +527,7 @@ html::-webkit-scrollbar, .sidebar::-webkit-scrollbar { display: none; }
       </div>
     </header>
     <div id="page"></div>
-    <footer class="footer"><span>FUMO · V0.9</span><span>Private · Sync and backups in Settings</span></footer>
+    <footer class="footer"><span>FUMO · V0.10</span><span>Private · Sync and backups in Settings</span></footer>
   </main>
 </div>
 <div class="modalback" id="modalback">
@@ -682,7 +682,7 @@ function normalize(o) {
     sessions: records(o.sessions).map(s => ({ id: okId(s.id), date: dayOr(s.date, today()), minutes: int(s.minutes, 0, 0, 600), projectId: str(s.projectId, 80) })).filter(s => s.minutes > 0),
     waiting: records(o.waiting).map(w => ({ id: okId(w.id), who: str(w.who, 80) || 'Someone', what: str(w.what, 300), projectId: str(w.projectId, 80), since: dayOr(w.since, today()), nudged: dayOr(w.nudged), done: !!w.done, resolved: dayOr(w.resolved) })),
     renewals: records(o.renewals).map(r => ({ id: okId(r.id), name: str(r.name, 120) || 'Renewal', kind: oneOf(r.kind, RENEWAL_KINDS, 'Other'), date: dayOr(r.date), note: str(r.note, 300) })).filter(r => r.date),
-    pages: records(o.pages).map(g => ({ id: okId(g.id), title: str(g.title, 120).trim() || 'Untitled', body: str(g.body, 50000), updated: num(g.updated, 0, 0, 1e15), day: dayOr(g.day) })),
+    pages: records(o.pages).map(g => ({ id: okId(g.id), title: str(g.title, 120).trim() || 'Untitled', body: str(g.body, 50000), updated: num(g.updated, 0, 0, 1e15), day: dayOr(g.day), projectId: str(g.projectId, 80) })),
     reading: records(o.reading).map(r => ({ id: okId(r.id), url: safeUrl(str(r.url, 800)), title: str(r.title, 200), desk: /^[\w-]{1,30}$/.test(r.desk) ? r.desk : 'work', added: dayOr(r.added, today()), read: !!r.read, source: str(r.source, 80), published: str(r.published, 40), summary: str(r.summary, 320), storyId: /^[\w-]{1,40}$/.test(r.storyId) ? r.storyId : '' })).filter(r => r.url),
     editionPrefs: (() => {
       const p = plainObject(o.editionPrefs), w = plainObject(p.weights), feed = safeUrl(str(p.feedUrl, 500));
@@ -716,7 +716,7 @@ let prefCollapsed = false;
 try { prefCollapsed = localStorage.getItem(UI_SIDEBAR) === 'collapsed'; } catch (e) {}
 let projectView = 'cards';
 try { if (localStorage.getItem(UI_PROJECTS) === 'board') projectView = 'board'; } catch (e) {}
-let calMonth = dayKey().slice(0, 7), pageId = '', pageEdit = false, pageEditFrom = '', pageSaveTimer = null;
+let calMonth = dayKey().slice(0, 7), pageFresh = null, pageId = '', pageEdit = false, pageEditFrom = '', pageSaveTimer = null;
 
 function persist() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -855,7 +855,7 @@ function blocklist() {
 }
 function inboxRows(limit) {
   const items = state.inbox.slice().reverse();
-  return (limit ? items.slice(0, limit) : items).map(n => `<div class="listrow"><div class="flex1"><div class="itemname plain">${esc(n.text)}</div>${projectName(n.projectId) ? `<div class="itemdetail">${esc(projectName(n.projectId))}</div>` : ''}</div>${btn('', 'routeNote', { cls: 'quiet small', id: n.id, ic: 'arrow', label: 'Send to a project' })}${btn('', 'deleteInbox', { cls: 'quiet small', id: n.id, ic: 'x', label: 'Delete note' })}</div>`).join('') || '<div class="empty">Clear your head. Write it down and move on.</div>';
+  return (limit ? items.slice(0, limit) : items).map(n => `<div class="listrow"><div class="flex1"><div class="itemname plain">${esc(n.text)}</div>${projectName(n.projectId) ? `<div class="itemdetail">${esc(projectName(n.projectId))}</div>` : ''}</div>${btn('', 'inboxToJournal', { cls: 'quiet small', id: n.id, ic: 'note', label: 'Add to today’s journal' })}${btn('', 'inboxToPage', { cls: 'quiet small', id: n.id, ic: 'edit', label: 'Turn into a page' })}${btn('', 'routeNote', { cls: 'quiet small', id: n.id, ic: 'arrow', label: 'Send to a project' })}${btn('', 'deleteInbox', { cls: 'quiet small', id: n.id, ic: 'x', label: 'Delete note' })}</div>`).join('') || '<div class="empty">Clear your head. Write it down and move on.</div>';
 }
 function winsCard() {
   const mode = winsMode(), set = state.wins.filter(Boolean).length;
@@ -933,6 +933,7 @@ function renderCommand() {
   </div>
   <div class="section-divider">The rest of your day</div>
   <div class="secondary">
+    ${todayCard()}
     ${winsCard()}
     ${waitingCard()}
     ${panel('Quick capture', 'Clear your head. Keep your momentum.', captureBox('Write it down…') + `<div class="mt-s">${inboxRows(4)}</div>`, `<button class="pill" data-action="navigate" data-id="inbox">${state.inbox.length} in inbox</button>`)}
@@ -951,7 +952,7 @@ function projectCard(p) {
   ${p.blocker ? `<p class="blocker">${icon('flag')}${esc(p.blocker)}</p>` : ''}
   <div class="meta-row">${p.due ? `<span class="pill ${dueClass(p.due)}">${dueText(p.due)}</span>` : ''}${total ? `<span class="pill ${done === total ? 'good' : ''}" title="Demo-day checklist">Demo ${done}/${total}</span>` : ''}${last ? `<span class="pill" title="${esc(last.note)}">Shipped${last.version ? ' ' + esc(last.version) : ''} ${ago(last.date)}</span>` : ''}${wk ? `<span class="pill">${hours(wk)}h this week</span>` : ''}</div>
   ${p.links.length ? `<div class="links">${linkPills(p.links, 3)}</div>` : ''}
-  <div class="bottom"><span class="micro">${esc(p.priority)} priority</span><div class="row" style="gap:2px">${btn('Open', 'openProject', { cls: 'quiet small', id: p.id })}${btn('Edit', 'editProject', { cls: 'quiet small', id: p.id })}${btn('Archive', 'archiveProject', { cls: 'quiet small', id: p.id })}</div></div></article>`;
+  <div class="bottom"><span class="micro">${esc(p.priority)} priority</span><div class="row" style="gap:2px">${btn('Open', 'openProject', { cls: 'quiet small', id: p.id })}${btn('Notes', 'projectNotes', { cls: 'quiet small', id: p.id })}${btn('Edit', 'editProject', { cls: 'quiet small', id: p.id })}${btn('Archive', 'archiveProject', { cls: 'quiet small', id: p.id })}</div></div></article>`;
 }
 /* Board view: one column per status. Drag a card, or use its status menu (keyboard and touch). */
 function boardCard(p) {
@@ -1074,7 +1075,7 @@ function md(src) {
 function renderPages() {
   const list = state.pages.filter(g => !g.day).sort((a, b) => b.updated - a.updated), days = state.pages.filter(g => g.day).sort((a, b) => b.day.localeCompare(a.day));
   const cur = pageById(pageId) || list[0] || days[0];
-  const actions = btn('Today’s journal', 'openJournal', { ic: 'note' }) + btn('New page', 'newPage', { cls: 'primary', ic: 'plus' });
+  const actions = btn('Today’s journal', 'openJournal', { ic: 'note' }) + btn('New page', 'pickTemplate', { cls: 'primary', ic: 'plus' });
   if (!cur) return head('Knowledge / Pages', 'Pages.', 'Long-form notes. Link one page to another with [[Page name]].', actions) + '<div class="panel empty">No pages yet. Start one for a client, a plan or anything you want to keep.</div>';
   const item = (g, name, sub) => `<button type="button" class="search-result" data-action="openPage" data-id="${g.id}"${g === cur ? ' aria-current="page"' : ''}><strong>${esc(name)}</strong><small>${sub}</small></button>`;
   const nav = `<nav class="pagelist" aria-label="All pages">${list.map(g => item(g, g.title, g.updated ? 'Edited ' + ago(dayKey(new Date(g.updated))) : '')).join('') || '<p class="hint">No pages yet.</p>'}
@@ -1084,7 +1085,9 @@ function renderPages() {
     ? `<div class="fields">${field('pageTitle', 'Title', cur.title, 'text', 'maxlength="120"')}${field('pageBody', 'Page', cur.body, 'textarea', 'class="pagebody" maxlength="50000"')}</div><p class="hint mt-s">Markdown: <code># Heading</code> <code>- list</code> <code>- [ ] task</code> <code>**bold**</code> <code>[[Page name]]</code>. Saves as you type.</p><div class="mt">${btn('Done', 'donePage', { cls: 'primary', ic: 'check' })}</div>`
     : `<div class="md">${md(cur.body) || '<p class="faint">Empty page. Press Edit to write.</p>'}</div>${back.length ? `<hr class="divider"><p class="eyebrow">Linked from</p><div class="links mt-s">${back.map(g => `<button type="button" class="pill" data-action="openPage" data-id="${g.id}">${esc(g.title)}</button>`).join('')}</div>` : ''}`;
   const tools = pageEdit && cur.id === pageId ? '' : `<div class="row" style="gap:2px">${btn('Edit', 'editPage', { cls: 'quiet small', id: cur.id })}${btn('Delete', 'deletePage', { cls: 'quiet small', id: cur.id })}</div>`;
-  return head(cur.day ? 'Knowledge / Journal' : 'Knowledge / Pages', esc(cur.day ? longDay(cur.day) : cur.title), cur.day ? `Link to this day with [[${cur.day}]].` : '', actions)
+  const proj = projectById(cur.projectId);
+  return head(cur.day ? 'Knowledge / Journal' : proj ? 'Knowledge / Project notes' : 'Knowledge / Pages', esc(cur.day ? longDay(cur.day) : cur.title),
+    cur.day ? `Link to this day with [[${cur.day}]].` : proj ? `Notes for <button type="button" class="wikilink" data-action="openProject" data-id="${proj.id}">${esc(proj.title)}</button>` : '', actions)
     + `<div class="pages">${panel('All pages', `${plural(list.length, 'page')} · ${days.length} journal ${days.length === 1 ? 'entry' : 'entries'}`, nav)}${panel(pageEdit && cur.id === pageId ? 'Editing' : 'Page', '', body, tools)}</div>`;
 }
 function openPage(id, edit = false) {
@@ -1093,9 +1096,54 @@ function openPage(id, edit = false) {
   if (page === 'pages') render({ focusHeading: !edit }); else go('pages');
   if (edit) $(pageById(id)?.title === 'Untitled' ? '#pageTitle' : '#pageBody')?.focus();
 }
-function newPage(title = 'Untitled', body = '', day = '') {
-  const g = { id: uid(), title: title.slice(0, 120), body, updated: Date.now(), day };
+function newPage(title = 'Untitled', body = '', day = '', projectId = '') {
+  if (pageEdit) finishPageEdit();
+  const g = { id: uid(), title: title.slice(0, 120), body, updated: Date.now(), day, projectId };
+  pageFresh = { id: g.id, body };
   state.pages.push(g); save(); openPage(g.id, true);
+}
+/* A journal entry or blank page that was opened and left untouched isn't kept. */
+function dropIfUntouched(g) {
+  const fresh = pageFresh?.id === g.id && g.body === pageFresh.body && (g.day || (g.title === 'Untitled' && !g.body.trim()));
+  pageFresh = null;
+  if (fresh) { state.pages = state.pages.filter(x => x !== g); pageId = ''; }
+}
+function appendJournal(d, text) {
+  let g = journalFor(d);
+  if (!g) state.pages.push(g = { id: uid(), title: d, body: '', updated: 0, day: d, projectId: '' });
+  g.body = (g.body.trim() ? g.body.trimEnd() + '\n\n' : '') + text; g.updated = Date.now();
+}
+function openProjectNotes(pid) {
+  const p = projectById(pid), g = state.pages.find(x => x.projectId === pid);
+  if (g) return openPage(g.id);
+  if (p) newPage(`${p.title} — notes`, TEMPLATE_BODY.brief, '', p.id);
+}
+
+/* ---------- Templates. The weekly review writes itself from the last 7 days. ---------- */
+const TEMPLATES = { blank: ['Blank page', 'Start from nothing'], brief: ['Client brief', 'Goal, audience, deliverables, deadline'], meeting: ['Meeting notes', 'Who was there, notes and actions'], weekly: ['Weekly review', 'Filled in from your last 7 days'] };
+const TEMPLATE_BODY = { brief: '## Goal\n\n## Audience\n\n## Deliverables\n- [ ] \n\n## Deadline\n\n## Links\n', meeting: '**With:** \n\n## Notes\n\n## Actions\n- [ ] \n' };
+function weeklyReview() {
+  const days = lastDays(7), inWeek = d => days.includes(d);
+  const shipped = state.projects.flatMap(p => p.log.filter(e => inWeek(e.date)).map(e => `- ${p.title}${e.version ? ' ' + e.version : ''}: ${e.note}`));
+  const byProj = {};
+  state.sessions.filter(x => inWeek(x.date)).forEach(x => { const k = projectName(x.projectId) || 'General focus'; byProj[k] = (byProj[k] || 0) + x.minutes; });
+  const total = sum(Object.values(byProj), m => m), train = state.workouts.filter(w => inWeek(w.date));
+  const list = (rows, none) => rows.length ? rows : [`- ${none}`];
+  return [
+    '## Shipped', ...list(shipped, 'Nothing logged'), '',
+    `## Focus · ${hours(total)}h`, ...list(Object.entries(byProj).sort((a, b) => b[1] - a[1]).map(([k, m]) => `- ${k}: ${hours(m)}h`), 'No sessions'), '',
+    `## Training · ${plural(train.length, 'session')}, ${sum(train, w => w.minutes)} min`, '',
+    '## Journal', ...list(days.filter(journalFor).map(d => `- [[${d}]]`), 'No entries'), '',
+    '## Still waiting on', ...list(openWaiting().map(w => `- ${w.who}${w.what ? ' — ' + w.what : ''} (${waitAge(w)}d)`), 'Nobody'), '',
+    '## Next week', '- [ ] '
+  ].join('\n');
+}
+function newFromTemplate(kind) {
+  if (modal) closeModal();
+  if (kind === 'weekly') return newPage(`Weekly review · ${fmtDay(lastDays(7)[0])}–${fmtDay(today())}`, weeklyReview());
+  if (kind === 'meeting') return newPage(`Meeting · ${fmtDay(today())}`, TEMPLATE_BODY.meeting);
+  if (kind === 'brief') return newPage('Client brief', TEMPLATE_BODY.brief);
+  newPage();
 }
 /* One journal entry per day, started from today's must-wins. */
 function openJournal(d = today()) {
@@ -1111,7 +1159,7 @@ function relinkPages(from, to) {
 }
 function finishPageEdit() {
   const g = pageById(pageId);
-  if (g) { g.title = g.title.trim() || 'Untitled'; relinkPages(pageEditFrom, g.title); }
+  if (g) { g.title = g.title.trim() || 'Untitled'; relinkPages(pageEditFrom, g.title); dropIfUntouched(g); }
   clearTimeout(pageSaveTimer); pageEdit = false; save();
 }
 
@@ -1125,6 +1173,15 @@ function monthItems(ym) {
   state.pages.filter(g => g.day).forEach(g => add(g.day, 'journal', 'Journal', 'openPage', g.id));
   return m;
 }
+const calPill = it => `<button type="button" class="pill ${{ due: 'warn', renewal: 'bad', workout: 'good' }[it.kind] || ''}" data-action="${it.action}" data-id="${esc(it.id)}">${esc(it.kind === 'journal' ? 'Journal' : CAL_KINDS[it.kind] + ' · ' + it.label)}</button>`;
+const dayItems = d => (monthItems(d.slice(0, 7))[d] || []).filter(it => it.kind !== 'journal');
+function todayCard() {
+  const now = dayItems(today()), next = dayItems(tomorrow()), j = journalFor(today());
+  const body = `${now.length ? `<div class="links">${now.map(calPill).join('')}</div>` : '<p class="hint">Nothing due today.</p>'}
+    ${next.length ? `<p class="eyebrow mt">Tomorrow</p><div class="links mt-s">${next.map(calPill).join('')}</div>` : ''}
+    <div class="mt">${btn(j ? 'Open today’s journal' : 'Start today’s journal', 'openJournal', { cls: 'small', ic: 'note' })}</div>`;
+  return panel('On the calendar', esc(fmtDay(today(), { weekday: 'long', day: 'numeric', month: 'long' })), body, btn('Calendar', 'navigate', { cls: 'small quiet', id: 'calendar' }));
+}
 function renderCalendar() {
   const [y, mo] = calMonth.split('-').map(Number), first = new Date(y, mo - 1, 1), lead = (first.getDay() + 6) % 7, n = new Date(y, mo, 0).getDate(), items = monthItems(calMonth), t = today();
   const cells = Array(lead).fill('<div class="cday out" aria-hidden="true"></div>').concat(Array.from({ length: n }, (_, i) => {
@@ -1133,7 +1190,7 @@ function renderCalendar() {
   }));
   const week = [...Array(7)].map((_, i) => `<span class="eyebrow">${new Date(2024, 0, 1 + i).toLocaleDateString(LOCALE, { weekday: 'short' })}</span>`).join('');
   const days = Object.keys(items).sort();
-  const agenda = days.length ? days.map(d => `<div class="listrow"><div class="flex1"><div class="itemname">${esc(fmtDay(d, { weekday: 'short', day: 'numeric', month: 'short' }))}</div><div class="links mt-s">${items[d].map(it => `<button type="button" class="pill ${{ due: 'warn', renewal: 'bad', workout: 'good' }[it.kind] || ''}" data-action="${it.action}" data-id="${esc(it.id)}">${esc(it.kind === 'journal' ? 'Journal' : CAL_KINDS[it.kind] + ' · ' + it.label)}</button>`).join('')}</div></div></div>`).join('') : '<div class="empty">Nothing dated this month. Due dates, renewals, workouts and journal entries show up here.</div>';
+  const agenda = days.length ? days.map(d => `<div class="listrow"><div class="flex1"><div class="itemname">${esc(fmtDay(d, { weekday: 'short', day: 'numeric', month: 'short' }))}</div><div class="links mt-s">${items[d].map(calPill).join('')}</div></div></div>`).join('') : '<div class="empty">Nothing dated this month. Due dates, renewals, workouts and journal entries show up here.</div>';
   return head('Time / Calendar', esc(first.toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' })), 'Tap a day number to open that day’s journal.', btn('Previous', 'calMonth', { id: 'prev', label: 'Previous month' }) + btn('Today', 'calMonth', { id: 'today' }) + btn('Next', 'calMonth', { id: 'next', label: 'Next month' }))
     + `<section class="panel"><div class="calhead" aria-hidden="true">${week}</div><div class="cal">${cells.join('')}</div></section>`
     + `<div class="mt">${panel('This month', plural(days.length, 'day') + ' with something on', agenda)}</div>`;
@@ -1478,6 +1535,7 @@ function render(opts = {}) {
 }
 function go(target) {
   const next = PAGES[target] ? target : 'command';
+  if (page === 'pages' && next !== 'pages' && pageEdit) { finishPageEdit(); }
   if (next === 'edition' && page !== 'edition') {
     editionPrevVisit = state.editionPrefs.lastVisit;
     state.editionPrefs.lastVisit = new Date().toISOString();
@@ -1552,7 +1610,7 @@ function projectModal(id, refresh) {
   <div class="modal-section"><p class="eyebrow">Demo-day checklist · ${done}/${total}</p>${state.checklist.map((c, i) => `<label class="choice listrow"><input type="checkbox" class="check" data-action="toggleCheck" data-id="${p.id}" data-item="${i}" ${p.checks[c] ? 'checked' : ''}><span>${esc(c)}</span></label>`).join('') || '<p class="hint">Set up your checklist in Settings.</p>'}</div>
   <div class="modal-section"><p class="eyebrow">Build log</p><div class="loggrid">${field('logVersion', 'Version', '', 'text', 'maxlength="40" placeholder="v0.3"')}${field('logNote', 'What shipped', '', 'text', 'maxlength="1000" placeholder="Fixed light theme, added follow-ups"')}${btn('Add', 'addLog', { id: p.id, ic: 'plus' })}</div><div class="mt-s">${log.map(e => `<div class="log-entry"><time>${fmtDay(e.date)}</time><div class="row between" style="align-items:flex-start"><span>${e.version ? `<strong>${esc(e.version)}</strong> · ` : ''}${esc(e.note)}</span>${btn('', 'deleteLog', { cls: 'quiet small', id: p.id, item: e.id, ic: 'x', label: 'Delete log entry' })}</div></div>`).join('') || '<p class="hint">Nothing logged yet.</p>'}</div></div>
   <div class="modal-section"><p class="eyebrow">Focus</p><p class="micro">${hours(wk)}h this week · ${hours(all)}h all time</p></div>
-  <div class="modalactions">${btn('Edit project', 'editProject', { id: p.id, ic: 'edit' })}${btn('Start focus', 'focusOn', { cls: 'primary', id: p.id, ic: 'play' })}</div>`, { size: 'wide', refresh });
+  <div class="modalactions">${btn(state.pages.some(g => g.projectId === p.id) ? 'Notes' : 'Start notes', 'projectNotes', { id: p.id, ic: 'note' })}${btn('Edit project', 'editProject', { id: p.id, ic: 'edit' })}${btn('Start focus', 'focusOn', { cls: 'primary', id: p.id, ic: 'play' })}</div>`, { size: 'wide', refresh });
 }
 function projectForm(p) {
   const clients = [...new Set(state.projects.map(x => x.client).filter(Boolean))].filter(c => c !== 'Own product').sort();
@@ -1783,6 +1841,17 @@ function doAction(a, key, el) {
     case 'restoreProject': x = projectById(key); if (x) { x.archived = false; save(); closeModal(); render(); toast(`${x.title} restored`); } break;
     case 'clientFilter': clientFilter = key; render(); break;
     case 'newPage': newPage(); break;
+    case 'pickTemplate': showModal('New page', `<div class="pagelist">${Object.entries(TEMPLATES).map(([k, [t, d]]) => `<button type="button" class="search-result" data-action="newFromTemplate" data-id="${k}"><strong>${t}</strong><small>${d}</small></button>`).join('')}</div>`); break;
+    case 'newFromTemplate': newFromTemplate(key); break;
+    case 'projectNotes': if (modal) closeModal(); openProjectNotes(key); break;
+    case 'inboxToJournal': x = state.inbox.find(n => n.id === key); if (x) withUndo('Added to today’s journal', () => { appendJournal(today(), x.text); state.inbox = state.inbox.filter(n => n !== x); }); break;
+    case 'inboxToPage': {
+      x = state.inbox.find(n => n.id === key);
+      if (!x) break;
+      const g = { id: uid(), title: x.text.split('\n')[0].slice(0, 60).trim() || 'Untitled', body: x.text, updated: Date.now(), day: '', projectId: x.projectId || '' };
+      withUndo('Turned into a page', () => { state.pages.push(g); state.inbox = state.inbox.filter(n => n !== x); });
+      openPage(g.id); break;
+    }
     case 'calMonth': { const [y, m] = calMonth.split('-').map(Number); calMonth = dayKey(key === 'today' ? new Date() : new Date(y, m - 1 + (key === 'next' ? 1 : -1), 1)).slice(0, 7); render(); break; }
     case 'openJournal': if (pageEdit) finishPageEdit(); openJournal(isDay(key) ? key : today()); break;
     case 'openPage': if (pageEdit) finishPageEdit(); openPage(key); break;
@@ -1974,9 +2043,7 @@ function doAction(a, key, el) {
       if (wipe && state.inbox.length && !confirm('Permanently clear your inbox?')) return;
       if (ship) ship.log.push({ id: uid(), date: today(), version: '', note: shipNote.slice(0, 1000) });
       const note = val('#journalNote').slice(0, 5000), entry = ['## Evening shutdown', ship ? `- Shipped on ${ship.title}: ${shipNote}` : '', `- Tomorrow: ${wins.join(' · ')}`, note ? `\n${note}` : ''].filter(Boolean).join('\n');
-      let jp = journalFor(today());
-      if (!jp) state.pages.push(jp = { id: uid(), title: today(), body: '', updated: 0, day: today() });
-      jp.body = (jp.body.trim() ? jp.body.trimEnd() + '\n\n' : '') + entry; jp.updated = Date.now();
+      appendJournal(today(), entry);
       state.wins = [0, 1, 2].map(i => wins[i] || ''); state.winsDone = [false, false, false]; state.winsDate = tomorrow(); state.shutdownDate = today();
       if (wipe) state.inbox = [];
       if (state.timer.running) { timerSync(); state.timer.running = false; state.timer.end = 0; }
