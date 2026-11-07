@@ -413,6 +413,17 @@ textarea{min-height:90px;resize:vertical}
 .wikilink.missing{color:var(--muted);text-decoration-style:dashed}
 .pagebody{min-height:50vh;font:14px/1.6 ui-monospace,monospace}
 @media (max-width:760px){.pages{grid-template-columns:minmax(0,1fr)}}
+.calhead{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-bottom:6px;text-align:center}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.cday{display:flex;flex-direction:column;gap:3px;min-width:0;min-height:96px;padding:6px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.cday.out{border-color:transparent;background:transparent}
+.cday.today{border-color:var(--text)}
+.cnum{align-self:flex-start;min-width:28px;min-height:28px;padding:0 6px;border:0;border-radius:99px;background:transparent;color:var(--text);font-size:13px;font-weight:600;cursor:pointer}
+.cnum:hover,.cday.has-journal .cnum{background:var(--surface-3)}
+.cday.today .cnum{background:var(--accent);color:var(--on-accent)}
+.citem{display:block;width:100%;padding:2px 6px;border:0;border-radius:6px;background:var(--surface-3);color:var(--text-2);font-size:11px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.citem.due{background:var(--warn-bg);color:var(--warn)}.citem.renewal{background:var(--bad-bg);color:var(--bad)}.citem.workout{background:var(--good-bg);color:var(--good)}
+@media (max-width:760px){.cday{min-height:52px;padding:3px}.citem{height:6px;padding:0;font-size:0}.cal,.calhead{gap:3px}}
 .crash{border-color:var(--bad)}
 
 /* Responsive */
@@ -602,8 +613,8 @@ const deskOptions = () => [...allDesks().map(d => [d.id, d.name]), ['work', 'Unf
 const deskName = k => (editionData()?.desks.find(d => d.id === k) || DESKS_DEF.find(d => d.id === k))?.name || (k === 'work' ? 'Unfiled' : 'The Edition');
 const EDITION_KEY = 'fumo.edition.cache', EDITION_SECRET = 'fumo.edition.key';
 const DEFAULT_CHECKLIST = ['Tested at phone width', 'Sample data looks real — no lorem ipsum', 'No leftover names or branding from other clients', 'Opens cleanly in a fresh browser', 'Talking points and the next ask are ready'];
-const NAV = [['command', 'command', 'Command Centre'], ['focus', 'focus', 'Focus'], ['projects', 'projects', 'Projects'], ['followups', 'follow', 'Follow-ups'], ['performance', 'performance', 'Performance'], ['rituals', 'rituals', 'Rituals'], ['edition', 'edition', 'The Daily Edition'], ['pages', 'note', 'Pages'], ['inbox', 'inbox', 'Inbox']];
-const PAGE_TITLES = { command: 'Command Centre', focus: 'Focus', projects: 'Projects', followups: 'Follow-ups', performance: 'Performance', rituals: 'Rituals', edition: 'The Daily Edition', pages: 'Pages', inbox: 'Inbox', settings: 'Settings' };
+const NAV = [['command', 'command', 'Command Centre'], ['focus', 'focus', 'Focus'], ['projects', 'projects', 'Projects'], ['followups', 'follow', 'Follow-ups'], ['performance', 'performance', 'Performance'], ['rituals', 'rituals', 'Rituals'], ['edition', 'edition', 'The Daily Edition'], ['calendar', 'calendar', 'Calendar'], ['pages', 'note', 'Pages'], ['inbox', 'inbox', 'Inbox']];
+const PAGE_TITLES = { command: 'Command Centre', focus: 'Focus', projects: 'Projects', followups: 'Follow-ups', performance: 'Performance', rituals: 'Rituals', edition: 'The Daily Edition', calendar: 'Calendar', pages: 'Pages', inbox: 'Inbox', settings: 'Settings' };
 
 /* ---------- Starter data (used only when this browser has no FUMO records) ---------- */
 const seed = () => ({
@@ -705,7 +716,7 @@ let prefCollapsed = false;
 try { prefCollapsed = localStorage.getItem(UI_SIDEBAR) === 'collapsed'; } catch (e) {}
 let projectView = 'cards';
 try { if (localStorage.getItem(UI_PROJECTS) === 'board') projectView = 'board'; } catch (e) {}
-let pageId = '', pageEdit = false, pageEditFrom = '', pageSaveTimer = null;
+let calMonth = dayKey().slice(0, 7), pageId = '', pageEdit = false, pageEditFrom = '', pageSaveTimer = null;
 
 function persist() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -805,7 +816,7 @@ const ICONS = {
   follow: 'M4 6h9 M4 10h6 M4 14h5 M14 11l3 3-3 3 M11 14h6', performance: 'M3 17h14 M5 13V9 M10 13V4 M15 13V7', rituals: 'M5 4h10v13H5z M8 3v3 M12 3v3 M8 10l2 2 3-4',
   edition: 'M3 4h14v13H3z M6 7h8 M6 10h3 M12 10h2 M6 13h8', inbox: 'M3 5h14v12H3z M3 10h4l1 3h4l1-3h4',
   settings: 'M10 6a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M10 2v2 M10 16v2 M2 10h2 M16 10h2 M4 4l1.5 1.5 M14.5 14.5 16 16 M16 4l-1.5 1.5 M5.5 14.5 4 16',
-  note: 'M4 3h8l4 4v10H4z M12 3v5h4 M7 11h6 M7 14h4', plus: 'M10 4v12 M4 10h12', workout: 'M6 3v14 M3 6v8 M6 10h8 M14 3v14 M17 6v8',
+  calendar: 'M3 5h14v12H3z M3 9h14 M7 3v4 M13 3v4', note: 'M4 3h8l4 4v10H4z M12 3v5h4 M7 11h6 M7 14h4', plus: 'M10 4v12 M4 10h12', workout: 'M6 3v14 M3 6v8 M6 10h8 M14 3v14 M17 6v8',
   link: 'M8.5 11.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5l-1 1 M11.5 8.5a3.5 3.5 0 0 0-5 0L4 11a3.5 3.5 0 0 0 5 5l1-1',
   search: 'M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3 M14 14l4 4', sun: 'M10 6a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M10 1v2 M10 17v2 M1 10h2 M17 10h2 M4 4l1 1 M15 15l1 1 M16 4l-1 1 M5 15l-1 1',
   moon: 'M16 13A7 7 0 0 1 7 4 7 7 0 1 0 9 17a7 7 0 0 0 7-4', arrow: 'M3 10h13 M11 5l5 5-5 5', play: 'M7 4l9 6-9 6z', pause: 'M7 4v12 M13 4v12',
@@ -1102,6 +1113,30 @@ function finishPageEdit() {
   clearTimeout(pageSaveTimer); pageEdit = false; save();
 }
 
+/* ---------- Calendar: everything with a date, by month. A day number opens that day's journal. ---------- */
+const CAL_KINDS = { due: 'Due', renewal: 'Renewal', workout: 'Workout', journal: 'Journal' };
+function monthItems(ym) {
+  const m = {}, add = (d, kind, label, action, id) => { if (d && d.startsWith(ym)) (m[d] = m[d] || []).push({ kind, label, action, id }); };
+  state.projects.filter(p => !p.archived && p.due && p.status !== 'Completed').forEach(p => add(p.due, 'due', p.title, 'openProject', p.id));
+  state.renewals.forEach(r => add(r.date, 'renewal', r.name, 'editRenewal', r.id));
+  state.workouts.forEach(w => add(w.date, 'workout', `${w.title}${w.minutes ? ' · ' + w.minutes + 'm' : ''}`, 'navigate', 'performance'));
+  state.pages.filter(g => g.day).forEach(g => add(g.day, 'journal', 'Journal', 'openPage', g.id));
+  return m;
+}
+function renderCalendar() {
+  const [y, mo] = calMonth.split('-').map(Number), first = new Date(y, mo - 1, 1), lead = (first.getDay() + 6) % 7, n = new Date(y, mo, 0).getDate(), items = monthItems(calMonth), t = today();
+  const cells = Array(lead).fill('<div class="cday out" aria-hidden="true"></div>').concat(Array.from({ length: n }, (_, i) => {
+    const d = `${calMonth}-${pad(i + 1)}`, list = items[d] || [], shown = list.filter(it => it.kind !== 'journal');
+    return `<div class="cday${d === t ? ' today' : ''}${list.length > shown.length ? ' has-journal' : ''}"><button type="button" class="cnum" data-action="openJournal" data-id="${d}" aria-label="${esc(longDay(d))}: open journal${shown.length ? ', ' + plural(shown.length, 'item') : ''}">${i + 1}</button>${shown.map(it => `<button type="button" class="citem ${it.kind}" data-action="${it.action}" data-id="${esc(it.id)}" title="${esc(CAL_KINDS[it.kind] + ': ' + it.label)}">${esc(it.label)}</button>`).join('')}</div>`;
+  }));
+  const week = [...Array(7)].map((_, i) => `<span class="eyebrow">${new Date(2024, 0, 1 + i).toLocaleDateString(LOCALE, { weekday: 'short' })}</span>`).join('');
+  const days = Object.keys(items).sort();
+  const agenda = days.length ? days.map(d => `<div class="listrow"><div class="flex1"><div class="itemname">${esc(fmtDay(d, { weekday: 'short', day: 'numeric', month: 'short' }))}</div><div class="links mt-s">${items[d].map(it => `<button type="button" class="pill ${{ due: 'warn', renewal: 'bad', workout: 'good' }[it.kind] || ''}" data-action="${it.action}" data-id="${esc(it.id)}">${esc(it.kind === 'journal' ? 'Journal' : CAL_KINDS[it.kind] + ' · ' + it.label)}</button>`).join('')}</div></div></div>`).join('') : '<div class="empty">Nothing dated this month. Due dates, renewals, workouts and journal entries show up here.</div>';
+  return head('Time / Calendar', esc(first.toLocaleDateString(LOCALE, { month: 'long', year: 'numeric' })), 'Tap a day number to open that day’s journal.', btn('Previous', 'calMonth', { id: 'prev', label: 'Previous month' }) + btn('Today', 'calMonth', { id: 'today' }) + btn('Next', 'calMonth', { id: 'next', label: 'Next month' }))
+    + `<section class="panel"><div class="calhead" aria-hidden="true">${week}</div><div class="cal">${cells.join('')}</div></section>`
+    + `<div class="mt">${panel('This month', plural(days.length, 'day') + ' with something on', agenda)}</div>`;
+}
+
 /* ---------- Inbox and Settings ---------- */
 function renderInbox() {
   return head('Capture / Clear your head', 'Inbox.', 'Give loose thoughts a home, then send each one to a project.', btn('New note', 'newNote', { cls: 'primary', ic: 'plus' }))
@@ -1121,7 +1156,7 @@ function renderSettings() {
 function crashPanel(err) {
   return `<section class="panel crash"><p class="kicker">Something broke</p><h1 tabindex="-1">This page couldn’t be shown.</h1><p class="lead">Your data is still saved. Export a backup to be safe, then try another page.</p><p class="hint mt-s">${esc(err?.message || err)}</p><div class="actions mt">${btn('Export backup', 'export', { cls: 'primary', ic: 'download' })}${btn('Go to Command Centre', 'navigate', { id: 'command' })}</div></section>`;
 }
-const PAGES = { command: renderCommand, focus: renderFocus, projects: renderProjects, followups: renderFollowups, performance: renderPerformance, rituals: renderRituals, edition: renderEdition, pages: renderPages, inbox: renderInbox, settings: renderSettings };
+const PAGES = { command: renderCommand, focus: renderFocus, projects: renderProjects, followups: renderFollowups, performance: renderPerformance, rituals: renderRituals, edition: renderEdition, calendar: renderCalendar, pages: renderPages, inbox: renderInbox, settings: renderSettings };
 
 /* ---------- The Daily Edition: data ---------- */
 const WEIGHT_FACTOR = [0, 0.6, 1, 1.5], WEIGHT_LABELS = ['Off', 'Low', 'Normal', 'High'];
@@ -1746,6 +1781,7 @@ function doAction(a, key, el) {
     case 'restoreProject': x = projectById(key); if (x) { x.archived = false; save(); closeModal(); render(); toast(`${x.title} restored`); } break;
     case 'clientFilter': clientFilter = key; render(); break;
     case 'newPage': newPage(); break;
+    case 'calMonth': { const [y, m] = calMonth.split('-').map(Number); calMonth = dayKey(key === 'today' ? new Date() : new Date(y, m - 1 + (key === 'next' ? 1 : -1), 1)).slice(0, 7); render(); break; }
     case 'openJournal': if (pageEdit) finishPageEdit(); openJournal(isDay(key) ? key : today()); break;
     case 'openPage': if (pageEdit) finishPageEdit(); openPage(key); break;
     case 'editPage': openPage(key, true); break;
