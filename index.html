@@ -283,7 +283,14 @@ textarea{min-height:90px;resize:vertical}
 .time{min-width:48px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .stat{min-height:118px}
 .stat .number{font-size:32px;font-weight:550;letter-spacing:-1px;margin:8px 0 2px}
-.breath{display:flex;flex-direction:column;align-items:center;justify-content:center;width:190px;height:190px;margin:28px auto;border-radius:50%;border:2px solid var(--border-strong);background:radial-gradient(circle,var(--surface-3),var(--surface));transition:transform 3.9s linear}
+.breath{display:flex;flex-direction:column;align-items:center;justify-content:center;width:190px;height:190px;margin:28px auto;border-radius:50%;border:2px solid var(--border-strong);background:radial-gradient(circle,var(--surface-3),var(--surface))}
+.breathwrap{position:relative;display:grid;place-items:center;width:220px;height:220px;margin:24px auto}
+.breathwrap .breath{position:relative;width:150px;height:150px;margin:0}
+.breathring{position:absolute;inset:0;overflow:visible}
+.breathring circle{fill:none;stroke-width:3}
+.breathring .track{stroke:var(--border)}
+.breathring .trace{stroke:var(--fill);stroke-linecap:round}
+.breathring .tick,.breathring .dot{fill:var(--fill);stroke:none}
 .breath b{font-size:22px;font-weight:550}
 .breath span{color:var(--muted)}
 
@@ -819,7 +826,7 @@ const ICONS = {
   calendar: 'M3 5h14v12H3z M3 9h14 M7 3v4 M13 3v4', note: 'M4 3h8l4 4v10H4z M12 3v5h4 M7 11h6 M7 14h4', plus: 'M10 4v12 M4 10h12', workout: 'M6 3v14 M3 6v8 M6 10h8 M14 3v14 M17 6v8',
   link: 'M8.5 11.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5l-1 1 M11.5 8.5a3.5 3.5 0 0 0-5 0L4 11a3.5 3.5 0 0 0 5 5l1-1',
   search: 'M9 3a6 6 0 1 0 0 12A6 6 0 0 0 9 3 M14 14l4 4', sun: 'M10 6a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M10 1v2 M10 17v2 M1 10h2 M17 10h2 M4 4l1 1 M15 15l1 1 M16 4l-1 1 M5 15l-1 1',
-  moon: 'M16 13A7 7 0 0 1 7 4 7 7 0 1 0 9 17a7 7 0 0 0 7-4', arrow: 'M3 10h13 M11 5l5 5-5 5', play: 'M7 4l9 6-9 6z', pause: 'M7 4v12 M13 4v12',
+  moon: 'M17.5 10.66A7.5 7.5 0 1 1 9.34 2.5 5.83 5.83 0 0 0 17.5 10.66z', arrow: 'M3 10h13 M11 5l5 5-5 5', play: 'M7 4l9 6-9 6z', pause: 'M7 4v12 M13 4v12',
   collapse: 'M4 3v14 M13 6l-4 4 4 4', menu: 'M3 5h14 M3 10h14 M3 15h14', reset: 'M4 7a7 7 0 1 1-1 6 M4 3v4h4', target: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M10 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
   check: 'M4 10.5l4 4 8-9', x: 'M5 5l10 10 M15 5L5 15', edit: 'M4 16l1-4 8-8 3 3-8 8z M11.5 5.5l3 3', archive: 'M3 4h14v4H3z M4 8v9h12V8 M8 11h4',
   flag: 'M5 17V3 M5 4h9l-2 3.5 2 3.5H5', clock: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M10 6v4l3 2', alert: 'M10 3l8 14H2z M10 8v4 M10 14.5v.5',
@@ -1688,21 +1695,34 @@ function searchResults(term) {
   target.innerHTML = items.length ? items.map(r => `<button type="button" class="search-result" data-action="${r.action}" data-id="${esc(r.id)}"><strong>${esc(r.title)}</strong><small>${esc(r.type)}${r.detail ? ' · ' + esc(r.detail) : ''}</small></button>`).join('') : '<p class="empty">No matches. Try another word.</p>';
 }
 function breathForm() {
-  showModal('Breathing reset', `<p class="muted">Two minutes of paced box breathing. Breathe naturally if the holds are uncomfortable, and stop if you feel dizzy.</p><div class="breath" id="breath"><b id="breathlabel">Ready</b><span id="breathcount">4 · 4 · 4 · 4</span></div><div class="row" style="justify-content:center">${btn('Begin', 'beginBreath', { cls: 'primary', ic: 'play' })}${btn('Stop', 'stopBreath')}</div><p class="hint mt" style="text-align:center">Or: a short walk, or five minutes with your eyes off the screen.</p>`);
+  showModal('Breathing reset', `<p class="muted">Two minutes of paced box breathing. Breathe naturally if the holds are uncomfortable, and stop if you feel dizzy.</p><div class="breathwrap"><svg class="breathring" viewBox="0 0 220 220" aria-hidden="true"><circle class="track" cx="110" cy="110" r="104"/><circle class="trace" id="breathtrace" cx="110" cy="110" r="104" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90 110 110)"/>${[[110, 6], [214, 110], [110, 214], [6, 110]].map(([x, y]) => `<circle class="tick" cx="${x}" cy="${y}" r="2.5"/>`).join('')}<circle class="dot" id="breathdot" cx="110" cy="6" r="6"/></svg><div class="breath" id="breath"><b id="breathlabel" aria-live="polite">Ready</b><span id="breathcount">4 · 4 · 4 · 4</span></div></div><div class="row" style="justify-content:center">${btn('Begin', 'beginBreath', { cls: 'primary', ic: 'play' })}${btn('Stop', 'stopBreath')}</div><p class="hint mt" style="text-align:center">Or: a short walk, or five minutes with your eyes off the screen.</p>`);
+}
+/* Box breathing, 4s per phase. Everything is computed from the start time, so the circle, the dot and the count never drift apart.
+   The circle grows through the inhale, stays full on the hold, shrinks through the exhale, stays small on the hold.
+   The dot travels the outer ring: one quarter per phase, one lap per breath. */
+function breathDraw(e) {
+  const el = $('#breath'), trace = $('#breathtrace'), dot = $('#breathdot');
+  if (!el || !trace || !dot) return;
+  const k = Math.floor(e / 4) % 4, ease = (1 - Math.cos(Math.PI * (e % 4) / 4)) / 2;
+  const scale = [1 + 0.3 * ease, 1.3, 1.3 - 0.3 * ease, 1][k];
+  el.style.transform = matchMedia('(prefers-reduced-motion: reduce)').matches ? '' : `scale(${scale.toFixed(3)})`;
+  const lap = (e % 16) / 16, a = 2 * Math.PI * lap - Math.PI / 2;
+  trace.setAttribute('stroke-dasharray', `${(lap * 100).toFixed(2)} 100`);
+  dot.setAttribute('cx', (110 + 104 * Math.cos(a)).toFixed(1)); dot.setAttribute('cy', (110 + 104 * Math.sin(a)).toFixed(1));
 }
 function doBreath() {
   clearInterval(breathTimer);
-  const start = Date.now(), names = ['Inhale', 'Hold', 'Exhale', 'Hold'];
+  const start = Date.now(), names = ['Inhale', 'Hold', 'Exhale', 'Hold'], total = 128; // 8 full breaths, so it ends after an exhale
   const update = () => {
-    const el = $('#breath'); if (!el) return clearInterval(breathTimer);
+    if (!$('#breath')) return clearInterval(breathTimer);
     const e = (Date.now() - start) / 1000;
-    if (e >= 120) { clearInterval(breathTimer); $('#breathlabel').textContent = 'Complete'; $('#breathcount').textContent = 'Two minutes done'; el.style.transform = 'scale(1)'; return; }
-    const k = Math.floor(e / 4) % 4;
-    $('#breathlabel').textContent = names[k];
+    if (e >= total) { clearInterval(breathTimer); breathDraw(0); $('#breathlabel').textContent = 'Complete'; $('#breathcount').textContent = 'Eight breaths done'; return; }
+    const k = Math.floor(e / 4) % 4, label = $('#breathlabel');
+    if (label.textContent !== names[k]) label.textContent = names[k];
     $('#breathcount').textContent = `${4 - Math.floor(e % 4)} seconds`;
-    el.style.transform = `scale(${k < 2 ? 1.22 : 1})`;
+    breathDraw(e);
   };
-  update(); breathTimer = setInterval(update, 100);
+  update(); breathTimer = setInterval(update, 30);
 }
 
 
@@ -2083,7 +2103,7 @@ function doAction(a, key, el) {
     case 'timerSwitch': resetTimer(state.timer.mode === 'focus' ? 'break' : 'focus'); save(); render(); break;
     case 'resetModal': breathForm(); break;
     case 'beginBreath': doBreath(); break;
-    case 'stopBreath': clearInterval(breathTimer); breathTimer = null; if ($('#breath')) { $('#breathlabel').textContent = 'Stopped'; $('#breath').style.transform = 'scale(1)'; } break;
+    case 'stopBreath': clearInterval(breathTimer); breathTimer = null; if ($('#breath')) { breathDraw(0); $('#breathlabel').textContent = 'Stopped'; } break;
 
     /* Settings and data */
     case 'saveProfile': state.profile.name = val('#profileNameInput').slice(0, 40); save(); render(); toast('Name saved'); break;
