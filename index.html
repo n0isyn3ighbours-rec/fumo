@@ -1034,6 +1034,8 @@ function renderRituals() {
 /* ---------- Pages: markdown notes with [[links]] and backlinks ---------- */
 const WIKI = /\[\[([^\]\n]{1,120})\]\]/g;
 const pageById = id => state.pages.find(g => g.id === id);
+/* While a page is being typed in, background updates must not redraw it under the cursor. */
+const editingPage = () => page === 'pages' && pageEdit;
 const journalFor = d => state.pages.find(g => g.day === d);
 const longDay = d => fmtDay(d, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 const pageByTitle = t => state.pages.find(g => g.title.toLowerCase() === t.trim().toLowerCase());
@@ -2108,7 +2110,7 @@ $('#modalback').addEventListener('click', e => { if (e.target.id === 'modalback'
 matchMedia(MOBILE).addEventListener?.('change', applyLayout);
 window.addEventListener('storage', e => {
   if (e.key !== STORAGE_KEY || !e.newValue) return;
-  try { state = normalize(JSON.parse(e.newValue)); if (!modal) render(); } catch (err) {}
+  try { state = normalize(JSON.parse(e.newValue)); if (!modal && !editingPage()) render(); } catch (err) {}
 });
 window.addEventListener('error', e => toast(`Something went wrong: ${e.message}`));
 
@@ -2137,14 +2139,14 @@ function tick() {
     if (m % 2 === 0 && syncOn() && document.visibilityState !== 'hidden') syncNow();
     lastMinute = m;
   }
-  if (dirty && !modal) render(); else { updateTimerChip(); setTitle(); }
+  if (dirty && !modal && !editingPage()) render(); else { updateTimerChip(); setTitle(); }
 }
 
 
 /* ---------- Sync: your records travel between devices through a private GitHub repository ---------- */
 /* The key and the last-synced copy stay on this device; only the records themselves are shared. */
 const SYNC_FILE = 'fumo-data.json', SYNC_BASE = 'fumo.sync.base', SYNC_SHA = 'fumo.sync.sha', SYNC_DIRTY = 'fumo.sync.dirty';
-const COLLECTIONS = ['blocks', 'projects', 'habits', 'inbox', 'workouts', 'sessions', 'waiting', 'renewals', 'reading'];
+const COLLECTIONS = ['blocks', 'projects', 'habits', 'inbox', 'workouts', 'sessions', 'waiting', 'renewals', 'reading', 'pages'];
 const local = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
 let syncBusy = false, syncAgain = false, syncTimer = null, syncLast = 0, syncError = '';
 const syncOn = () => !!(state.sync.repo && getEditionKey());
@@ -2220,7 +2222,7 @@ async function syncNow() {
     else { state = next; local.set(SYNC_DIRTY, null); }
     persist();
     syncLast = Date.now(); syncError = '';
-    if ((JSON.stringify(state) !== now || page === 'settings') && !modal) render();
+    if ((JSON.stringify(state) !== now || page === 'settings') && !modal && !editingPage()) render();
     if (notice) toast(notice);
   } catch (e) {
     if (e.message && e.message !== syncError) { syncError = /fetch|network|load failed/i.test(e.message) ? 'Offline — changes are saved here and will sync when you’re back online.' : e.message; if (page === 'settings' && !modal) render(); }
