@@ -396,6 +396,23 @@ textarea{min-height:90px;resize:vertical}
 .search-result:hover,.search-result:focus-visible{background:var(--hover)}
 .search-result strong{display:block;font-size:13px;font-weight:550;overflow-wrap:anywhere}
 .search-result small{font-size:12px;color:var(--faint)}
+.pages{display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start}
+.pagelist{display:grid;gap:6px}
+.pagelist .search-result[aria-current]{background:var(--surface-3);border-color:var(--border-strong)}
+.md{font-size:15px;line-height:1.65;color:var(--text-2);overflow-wrap:anywhere}
+.md>*+*{margin-top:10px}
+.md h2,.md h3,.md h4{color:var(--text);margin-top:18px}
+.md h2{font-size:22px}.md h3{font-size:18px}.md h4{font-size:15px}
+.md ul,.md ol{margin:0;padding-left:22px}
+.md li.task{list-style:none;margin-left:-22px}
+.md li.task label{display:flex;gap:8px;align-items:baseline}
+.md blockquote{margin:0;padding-left:12px;border-left:3px solid var(--border-strong);color:var(--muted)}
+.md code{font:13px ui-monospace,monospace;padding:1px 5px;border-radius:5px;background:var(--surface-3)}
+.md a{color:var(--text)}
+.wikilink{padding:0;border:0;background:none;font:inherit;color:var(--text);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.wikilink.missing{color:var(--muted);text-decoration-style:dashed}
+.pagebody{min-height:50vh;font:14px/1.6 ui-monospace,monospace}
+@media (max-width:760px){.pages{grid-template-columns:minmax(0,1fr)}}
 .crash{border-color:var(--bad)}
 
 /* Responsive */
@@ -584,8 +601,8 @@ const deskOptions = () => [...allDesks().map(d => [d.id, d.name]), ['work', 'Unf
 const deskName = k => (editionData()?.desks.find(d => d.id === k) || DESKS_DEF.find(d => d.id === k))?.name || (k === 'work' ? 'Unfiled' : 'The Edition');
 const EDITION_KEY = 'fumo.edition.cache', EDITION_SECRET = 'fumo.edition.key';
 const DEFAULT_CHECKLIST = ['Tested at phone width', 'Sample data looks real — no lorem ipsum', 'No leftover names or branding from other clients', 'Opens cleanly in a fresh browser', 'Talking points and the next ask are ready'];
-const NAV = [['command', 'command', 'Command Centre'], ['focus', 'focus', 'Focus'], ['projects', 'projects', 'Projects'], ['followups', 'follow', 'Follow-ups'], ['performance', 'performance', 'Performance'], ['rituals', 'rituals', 'Rituals'], ['edition', 'edition', 'The Daily Edition'], ['inbox', 'inbox', 'Inbox']];
-const PAGE_TITLES = { command: 'Command Centre', focus: 'Focus', projects: 'Projects', followups: 'Follow-ups', performance: 'Performance', rituals: 'Rituals', edition: 'The Daily Edition', inbox: 'Inbox', settings: 'Settings' };
+const NAV = [['command', 'command', 'Command Centre'], ['focus', 'focus', 'Focus'], ['projects', 'projects', 'Projects'], ['followups', 'follow', 'Follow-ups'], ['performance', 'performance', 'Performance'], ['rituals', 'rituals', 'Rituals'], ['edition', 'edition', 'The Daily Edition'], ['pages', 'note', 'Pages'], ['inbox', 'inbox', 'Inbox']];
+const PAGE_TITLES = { command: 'Command Centre', focus: 'Focus', projects: 'Projects', followups: 'Follow-ups', performance: 'Performance', rituals: 'Rituals', edition: 'The Daily Edition', pages: 'Pages', inbox: 'Inbox', settings: 'Settings' };
 
 /* ---------- Starter data (used only when this browser has no FUMO records) ---------- */
 const seed = () => ({
@@ -598,7 +615,7 @@ const seed = () => ({
   ].map(([title, client, status, priority, next, blocker]) => ({ id: uid(), title, client, status, priority, next, blocker, due: '', links: [], log: [], checks: {}, archived: false })),
   habits: [['Daily intention', 'Focus'], ['Uninterrupted focus block', 'Focus'], ['Movement / workout', 'Physical'], ['Drink water', 'Physical'], ['Recovery break', 'Recovery'], ['Evening shutdown', 'Recovery']]
     .map(([title, category]) => ({ id: uid(), title, category, history: {}, grace: [] })),
-  inbox: [], workouts: [], sessions: [], waiting: [], renewals: [], reading: [],
+  inbox: [], workouts: [], sessions: [], waiting: [], renewals: [], reading: [], pages: [],
   wins: ['', '', ''], winsDone: [false, false, false], winsDate: today(), shutdownDate: null,
   settings: { focus: 90, break: 15 },
   timer: { mode: 'focus', length: 5400, seconds: 5400, running: false, end: 0, projectId: '' },
@@ -653,6 +670,7 @@ function normalize(o) {
     sessions: records(o.sessions).map(s => ({ id: okId(s.id), date: dayOr(s.date, today()), minutes: int(s.minutes, 0, 0, 600), projectId: str(s.projectId, 80) })).filter(s => s.minutes > 0),
     waiting: records(o.waiting).map(w => ({ id: okId(w.id), who: str(w.who, 80) || 'Someone', what: str(w.what, 300), projectId: str(w.projectId, 80), since: dayOr(w.since, today()), nudged: dayOr(w.nudged), done: !!w.done, resolved: dayOr(w.resolved) })),
     renewals: records(o.renewals).map(r => ({ id: okId(r.id), name: str(r.name, 120) || 'Renewal', kind: oneOf(r.kind, RENEWAL_KINDS, 'Other'), date: dayOr(r.date), note: str(r.note, 300) })).filter(r => r.date),
+    pages: records(o.pages).map(g => ({ id: okId(g.id), title: str(g.title, 120).trim() || 'Untitled', body: str(g.body, 50000), updated: num(g.updated, 0, 0, 1e15) })),
     reading: records(o.reading).map(r => ({ id: okId(r.id), url: safeUrl(str(r.url, 800)), title: str(r.title, 200), desk: /^[\w-]{1,30}$/.test(r.desk) ? r.desk : 'work', added: dayOr(r.added, today()), read: !!r.read, source: str(r.source, 80), published: str(r.published, 40), summary: str(r.summary, 320), storyId: /^[\w-]{1,40}$/.test(r.storyId) ? r.storyId : '' })).filter(r => r.url),
     editionPrefs: (() => {
       const p = plainObject(o.editionPrefs), w = plainObject(p.weights), feed = safeUrl(str(p.feedUrl, 500));
@@ -686,6 +704,7 @@ let prefCollapsed = false;
 try { prefCollapsed = localStorage.getItem(UI_SIDEBAR) === 'collapsed'; } catch (e) {}
 let projectView = 'cards';
 try { if (localStorage.getItem(UI_PROJECTS) === 'board') projectView = 'board'; } catch (e) {}
+let pageId = '', pageEdit = false, pageEditFrom = '', pageSaveTimer = null;
 
 function persist() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -1000,6 +1019,76 @@ function renderRituals() {
     + `<div class="grid cols2">${panel('Daily adherence', `${hp}% of habits done today`, bar(hp) + `<div class="mt">${habitsList(false)}</div>`)}<div class="stack">${winsCard()}${panel('End-of-day ritual', state.shutdownDate === today() ? 'Completed today' : 'Not completed yet', `<p class="muted">Review the day, set tomorrow’s must-wins, log what shipped and see who to chase.</p><div class="mt">${btn('Begin shutdown', 'shutdownModal', { cls: 'primary', ic: 'power' })}</div>`)}</div></div>`;
 }
 
+/* ---------- Pages: markdown notes with [[links]] and backlinks ---------- */
+const WIKI = /\[\[([^\]\n]{1,120})\]\]/g;
+const pageById = id => state.pages.find(g => g.id === id);
+const pageByTitle = t => state.pages.find(g => g.title.toLowerCase() === t.trim().toLowerCase());
+const linksTo = (g, t) => [...g.body.matchAll(WIKI)].some(m => m[1].trim().toLowerCase() === t.toLowerCase());
+/* Everything is escaped first; only these marks become HTML, and links go through safeUrl. */
+function mdInline(s) {
+  let out = '', last = 0;
+  for (const m of s.matchAll(/\[\[([^\]\n]{1,120})\]\]|\[([^\]\n]+)\]\(([^\s)]+)\)|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|`([^`\n]+)`/g)) {
+    out += esc(s.slice(last, m.index)); last = m.index + m[0].length;
+    if (m[1]) { const t = m[1].trim(); out += `<button type="button" class="wikilink${pageByTitle(t) ? '' : ' missing'}" data-action="wikiLink" data-id="${esc(t)}">${esc(t)}</button>`; }
+    else if (m[2]) { const u = safeUrl(m[3]); out += u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${esc(m[2])}</a>` : esc(m[0]); }
+    else if (m[4]) out += `<strong>${esc(m[4])}</strong>`;
+    else if (m[5]) out += `<em>${esc(m[5])}</em>`;
+    else out += `<code>${esc(m[6])}</code>`;
+  }
+  return out + esc(s.slice(last));
+}
+function md(src) {
+  const out = []; let list = '';
+  const open = t => { if (list !== t) { close(); out.push(`<${t}>`); list = t; } };
+  const close = () => { if (list) out.push(`</${list}>`); list = ''; };
+  String(src).split('\n').forEach((line, i) => {
+    const h = line.match(/^(#{1,3})\s+(.+)/), task = line.match(/^\s*[-*]\s+\[([ xX])\]\s+(.*)/), li = line.match(/^\s*[-*]\s+(.*)/), ol = line.match(/^\s*\d+[.)]\s+(.*)/);
+    if (h) { close(); const n = h[1].length + 1; out.push(`<h${n}>${mdInline(h[2])}</h${n}>`); }
+    else if (task) { open('ul'); out.push(`<li class="task"><label><input type="checkbox" class="check" data-action="togglePageTask" data-id="${i}"${task[1] === ' ' ? '' : ' checked'}><span>${mdInline(task[2])}</span></label></li>`); }
+    else if (li) { open('ul'); out.push(`<li>${mdInline(li[1])}</li>`); }
+    else if (ol) { open('ol'); out.push(`<li>${mdInline(ol[1])}</li>`); }
+    else if (/^>\s?/.test(line)) { close(); out.push(`<blockquote>${mdInline(line.replace(/^>\s?/, ''))}</blockquote>`); }
+    else if (/^\s*(-{3,}|\*{3,})\s*$/.test(line)) { close(); out.push('<hr class="divider">'); }
+    else if (!line.trim()) close();
+    else { close(); out.push(`<p>${mdInline(line)}</p>`); }
+  });
+  close();
+  return out.join('');
+}
+function renderPages() {
+  const list = state.pages.slice().sort((a, b) => b.updated - a.updated), cur = pageById(pageId) || list[0];
+  const actions = btn('New page', 'newPage', { cls: 'primary', ic: 'plus' });
+  if (!cur) return head('Knowledge / Pages', 'Pages.', 'Long-form notes. Link one page to another with [[Page name]].', actions) + '<div class="panel empty">No pages yet. Start one for a client, a plan or anything you want to keep.</div>';
+  const nav = `<nav class="pagelist" aria-label="All pages">${list.map(g => `<button type="button" class="search-result" data-action="openPage" data-id="${g.id}"${g === cur ? ' aria-current="page"' : ''}><strong>${esc(g.title)}</strong><small>${g.updated ? 'Edited ' + ago(dayKey(new Date(g.updated))) : ''}</small></button>`).join('')}</nav>`;
+  const back = state.pages.filter(g => g !== cur && linksTo(g, cur.title));
+  const body = pageEdit && cur.id === pageId
+    ? `<div class="fields">${field('pageTitle', 'Title', cur.title, 'text', 'maxlength="120"')}${field('pageBody', 'Page', cur.body, 'textarea', 'class="pagebody" maxlength="50000"')}</div><p class="hint mt-s">Markdown: <code># Heading</code> <code>- list</code> <code>- [ ] task</code> <code>**bold**</code> <code>[[Page name]]</code>. Saves as you type.</p><div class="mt">${btn('Done', 'donePage', { cls: 'primary', ic: 'check' })}</div>`
+    : `<div class="md">${md(cur.body) || '<p class="faint">Empty page. Press Edit to write.</p>'}</div>${back.length ? `<hr class="divider"><p class="eyebrow">Linked from</p><div class="links mt-s">${back.map(g => `<button type="button" class="pill" data-action="openPage" data-id="${g.id}">${esc(g.title)}</button>`).join('')}</div>` : ''}`;
+  const tools = pageEdit && cur.id === pageId ? '' : `<div class="row" style="gap:2px">${btn('Edit', 'editPage', { cls: 'quiet small', id: cur.id })}${btn('Delete', 'deletePage', { cls: 'quiet small', id: cur.id })}</div>`;
+  return head('Knowledge / Pages', esc(cur.title), '', actions)
+    + `<div class="pages">${panel('All pages', plural(list.length, 'page'), nav)}${panel(pageEdit && cur.id === pageId ? 'Editing' : 'Page', '', body, tools)}</div>`;
+}
+function openPage(id, edit = false) {
+  pageId = id; pageEdit = edit; pageEditFrom = edit ? pageById(id)?.title || '' : '';
+  if (modal) closeModal();
+  if (page === 'pages') render({ focusHeading: !edit }); else go('pages');
+  if (edit) $(pageById(id)?.title === 'Untitled' ? '#pageTitle' : '#pageBody')?.focus();
+}
+function newPage(title = 'Untitled') {
+  const g = { id: uid(), title: title.slice(0, 120), body: '', updated: Date.now() };
+  state.pages.push(g); save(); openPage(g.id, true);
+}
+/* Renaming a page rewrites [[Old name]] links everywhere, so they keep pointing at it. */
+function relinkPages(from, to) {
+  if (!from || !to || from.toLowerCase() === to.toLowerCase()) return;
+  state.pages.forEach(g => { g.body = g.body.replace(WIKI, (m, t) => t.trim().toLowerCase() === from.toLowerCase() ? `[[${to}]]` : m); });
+}
+function finishPageEdit() {
+  const g = pageById(pageId);
+  if (g) { g.title = g.title.trim() || 'Untitled'; relinkPages(pageEditFrom, g.title); }
+  clearTimeout(pageSaveTimer); pageEdit = false; save();
+}
+
 /* ---------- Inbox and Settings ---------- */
 function renderInbox() {
   return head('Capture / Clear your head', 'Inbox.', 'Give loose thoughts a home, then send each one to a project.', btn('New note', 'newNote', { cls: 'primary', ic: 'plus' }))
@@ -1019,7 +1108,7 @@ function renderSettings() {
 function crashPanel(err) {
   return `<section class="panel crash"><p class="kicker">Something broke</p><h1 tabindex="-1">This page couldn’t be shown.</h1><p class="lead">Your data is still saved. Export a backup to be safe, then try another page.</p><p class="hint mt-s">${esc(err?.message || err)}</p><div class="actions mt">${btn('Export backup', 'export', { cls: 'primary', ic: 'download' })}${btn('Go to Command Centre', 'navigate', { id: 'command' })}</div></section>`;
 }
-const PAGES = { command: renderCommand, focus: renderFocus, projects: renderProjects, followups: renderFollowups, performance: renderPerformance, rituals: renderRituals, edition: renderEdition, inbox: renderInbox, settings: renderSettings };
+const PAGES = { command: renderCommand, focus: renderFocus, projects: renderProjects, followups: renderFollowups, performance: renderPerformance, rituals: renderRituals, edition: renderEdition, pages: renderPages, inbox: renderInbox, settings: renderSettings };
 
 /* ---------- The Daily Edition: data ---------- */
 const WEIGHT_FACTOR = [0, 0.6, 1, 1.5], WEIGHT_LABELS = ['Off', 'Low', 'Normal', 'High'];
@@ -1481,11 +1570,12 @@ function searchResults(term) {
     ...state.projects.filter(p => !p.archived).map(p => ({ type: p.client ? `Project · ${p.client}` : 'Project', title: p.title, detail: p.next, action: 'openProject', id: p.id })),
     ...openWaiting().map(w => ({ type: 'Follow-up', title: `${w.who}${w.what ? ' — ' + w.what : ''}`, detail: `${waitAge(w)}d waiting`, action: 'editWaiting', id: w.id })),
     ...state.inbox.map(n => ({ type: 'Note', title: n.text, detail: 'Inbox', action: 'routeNote', id: n.id })),
+    ...state.pages.map(g => ({ type: 'Page', title: g.title, detail: g.body.split('\n').find(l => l.trim())?.slice(0, 80) || '', text: g.body, action: 'openPage', id: g.id })),
     ...(editionData()?.stories || []).slice(0, 400).map(s => ({ type: `Edition · ${deskName(s.desk)}`, title: s.title, detail: s.source, action: 'openStory', id: s.id })),
     ...state.reading.map(r => ({ type: 'Library', title: r.title || hostOf(r.url), detail: r.source || hostOf(r.url), action: 'openReadingTab', id: r.id })),
     ...state.renewals.map(r => ({ type: 'Renewal', title: r.name, detail: `${r.kind} · ${fmtDay(r.date)}`, action: 'editRenewal', id: r.id })),
     ...state.blocks.map(b => ({ type: 'Routine', title: b.title, detail: `${b.time} · ${b.detail}`, action: 'editBlock', id: b.id }))
-  ].filter(x => !q || `${x.type} ${x.title} ${x.detail}`.toLowerCase().includes(q)).slice(0, 12);
+  ].filter(x => !q || `${x.type} ${x.title} ${x.detail} ${x.text || ''}`.toLowerCase().includes(q)).slice(0, 12);
   target.innerHTML = items.length ? items.map(r => `<button type="button" class="search-result" data-action="${r.action}" data-id="${esc(r.id)}"><strong>${esc(r.title)}</strong><small>${esc(r.type)}${r.detail ? ' · ' + esc(r.detail) : ''}</small></button>`).join('') : '<p class="empty">No matches. Try another word.</p>';
 }
 function breathForm() {
@@ -1641,6 +1731,18 @@ function doAction(a, key, el) {
     }
     case 'restoreProject': x = projectById(key); if (x) { x.archived = false; save(); closeModal(); render(); toast(`${x.title} restored`); } break;
     case 'clientFilter': clientFilter = key; render(); break;
+    case 'newPage': newPage(); break;
+    case 'openPage': if (pageEdit) finishPageEdit(); openPage(key); break;
+    case 'editPage': openPage(key, true); break;
+    case 'donePage': finishPageEdit(); render(); break;
+    case 'deletePage': x = pageById(key); if (x) { pageEdit = false; withUndo(`${x.title} deleted`, () => { state.pages = state.pages.filter(g => g !== x); }); } break;
+    case 'wikiLink': x = pageByTitle(key); if (x) openPage(x.id); else newPage(key); break;
+    case 'togglePageTask': {
+      const g = pageById(pageId), lines = g?.body.split('\n'), i = Number(key);
+      if (!g || !lines[i]) break;
+      lines[i] = lines[i].replace(/\[([ xX])\]/, (m, c) => c === ' ' ? '[x]' : '[ ]');
+      g.body = lines.join('\n'); g.updated = Date.now(); save(); break;
+    }
     case 'projectView': projectView = projectView === 'board' ? 'cards' : 'board'; local.set(UI_PROJECTS, projectView); render(); break;
     case 'toggleCheck': {
       const p = projectById(key), item = state.checklist[Number(el?.dataset.item)];
@@ -1918,11 +2020,18 @@ document.addEventListener('change', e => {
   const el = e.target;
   if (el.matches('input[type=checkbox][data-action]')) doAction(el.dataset.action, el.dataset.id, el);
   else if (el.dataset.change === 'timerProject') { state.timer.projectId = el.value; save(); }
+  else if (el.id === 'pageTitle') { const g = pageById(pageId); if (g && g.title.trim()) { relinkPages(pageEditFrom, g.title.trim()); pageEditFrom = g.title.trim(); save(); } }
   else if (el.dataset.change === 'projectStatus') moveProject(el.dataset.id, el.value);
   else if (el.id === 'importfile') { importFile(el.files?.[0]); el.value = ''; }
 });
 document.addEventListener('input', e => {
   if (e.target.id === 'globalSearch') searchResults(e.target.value);
+  else if (e.target.id === 'pageTitle' || e.target.id === 'pageBody') {
+    const g = pageById(pageId);
+    if (!g) return;
+    g[e.target.id === 'pageTitle' ? 'title' : 'body'] = e.target.value; g.updated = Date.now();
+    clearTimeout(pageSaveTimer); pageSaveTimer = setTimeout(save, 400);
+  }
   else if (e.target.id === 'libSearch') { libraryQuery = e.target.value; const r = $('#libResults'); if (r) r.innerHTML = libraryResults(); }
 });
 document.addEventListener('dragstart', e => { const c = e.target.closest?.('[data-drag]'); if (c) { e.dataTransfer.setData('text/plain', c.dataset.drag); e.dataTransfer.effectAllowed = 'move'; } });
