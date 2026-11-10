@@ -1,0 +1,10 @@
+# Install CPU-only torch first (avoids ~2 GB of CUDA libraries):
+#   pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+# Versions below are Kronos's own pins (commit 67b630e), minus matplotlib which only its examples use.
+# ponytail: exact versions, no hashes yet; add --require-hashes when this moves to CI.
+numpy==2.0.2
+pandas==2.2.2
+einops==0.8.1
+huggingface_hub==0.33.1
+safetensors==0.6.2
+tqdm==4.67.1

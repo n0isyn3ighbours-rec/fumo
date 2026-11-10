@@ -534,7 +534,7 @@ html::-webkit-scrollbar, .sidebar::-webkit-scrollbar { display: none; }
       </div>
     </header>
     <div id="page"></div>
-    <footer class="footer"><span>FUMO · V0.10</span><span>Private · Sync and backups in Settings</span></footer>
+    <footer class="footer"><span>FUMO · V0.11</span><span>Private · Sync and backups in Settings</span></footer>
   </main>
 </div>
 <div class="modalback" id="modalback">
@@ -620,7 +620,7 @@ const deskOptions = () => [...allDesks().map(d => [d.id, d.name]), ['work', 'Unf
 const deskName = k => (editionData()?.desks.find(d => d.id === k) || DESKS_DEF.find(d => d.id === k))?.name || (k === 'work' ? 'Unfiled' : 'The Edition');
 const EDITION_KEY = 'fumo.edition.cache', EDITION_SECRET = 'fumo.edition.key';
 const DEFAULT_CHECKLIST = ['Tested at phone width', 'Sample data looks real — no lorem ipsum', 'No leftover names or branding from other clients', 'Opens cleanly in a fresh browser', 'Talking points and the next ask are ready'];
-const NAV = [['command', 'command', 'Command Centre'], ['focus', 'focus', 'Focus'], ['projects', 'projects', 'Projects'], ['followups', 'follow', 'Follow-ups'], ['performance', 'performance', 'Performance'], ['rituals', 'rituals', 'Rituals'], ['edition', 'edition', 'The Daily Edition'], ['calendar', 'calendar', 'Calendar'], ['pages', 'note', 'Pages'], ['inbox', 'inbox', 'Inbox']];
+const NAV = [['command', 'command', 'Command Centre'], ['focus', 'focus', 'Focus'], ['projects', 'projects', 'Projects'], ['followups', 'follow', 'Follow-ups'], ['performance', 'performance', 'Performance'], ['rituals', 'rituals', 'Rituals'], ['edition', 'edition', 'The Daily Edition'], ['trading', 'trading', 'Trading'], ['calendar', 'calendar', 'Calendar'], ['pages', 'note', 'Pages'], ['inbox', 'inbox', 'Inbox']];
 const PAGE_TITLES = { command: 'Command Centre', focus: 'Focus', projects: 'Projects', followups: 'Follow-ups', performance: 'Performance', rituals: 'Rituals', edition: 'The Daily Edition', calendar: 'Calendar', pages: 'Pages', inbox: 'Inbox', settings: 'Settings' };
 
 /* ---------- Starter data (used only when this browser has no FUMO records) ---------- */
@@ -819,6 +819,7 @@ function parseSkills(text) {
 
 /* ---------- Markup helpers ---------- */
 const ICONS = {
+  trading: 'M3 17h14 M4 14l4-5 3 3 5-7',
   command: 'M3 9l7-6 7 6v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z M8 18v-7h4v7', focus: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M10 7v3l2 2', projects: 'M3 6h5l2-2h7v13H3z M7 9h6',
   follow: 'M4 6h9 M4 10h6 M4 14h5 M14 11l3 3-3 3 M11 14h6', performance: 'M3 17h14 M5 13V9 M10 13V4 M15 13V7', rituals: 'M5 4h10v13H5z M8 3v3 M12 3v3 M8 10l2 2 3-4',
   edition: 'M3 4h14v13H3z M6 7h8 M6 10h3 M12 10h2 M6 13h8', inbox: 'M3 5h14v12H3z M3 10h4l1 3h4l1-3h4',
@@ -1791,7 +1792,7 @@ function doAction(a, key, el) {
   let x;
   switch (a) {
     /* Navigation and chrome */
-    case 'navigate': go(key); break;
+    case 'navigate': if (key === 'trading') { location.href = 'trading/'; break; } go(key); break; // Trading is its own page
     case 'goRenewals': go('projects'); $('#renewals')?.scrollIntoView({ block: 'start' }); break;
     case 'openDrawer': setDrawer(true); break;
     case 'closeDrawer': setDrawer(false); break;

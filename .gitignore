@@ -1,0 +1,3 @@
+trading/data/*
+!trading/data/.gitkeep
+__pycache__/

@@ -1,0 +1,1172 @@
+<!doctype html>
+<html lang="en" data-skin="fumo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trading desk · FUMO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@5.2.1/dist/lightweight-charts.standalone.production.js"
+        integrity="sha384-KkYqTZlM13Zya6fVUF3IGCBOQ1ehFeJVVgxaVvD/0MebineF9EI8Jkd3NnWNChqN" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --bg:#050B14; --panel:#071322; --border:#12324A; --grid:#0E2638;
+    --text:#CFE8F5; --muted:#5E7F95; --dim:#34536A;
+    --cyan:#22D3EE; --gold:#F5C451; --up:#34D399; --down:#F43F5E; --amber:#F59E0B; --violet:#A78BFA; --magenta:#FF2BD6;
+    --accent: var(--cyan); --teal:#2DD4BF; --shell:#AAD7EB; --overlay: rgba(6,8,12,.75);
+    --font: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --num-font: var(--font); --label-font: var(--font);
+  }
+  /* each tab borrows the palette of the dashboard it came from */
+  body[data-tab="paper"] { --bg:#07040A; --panel:#0E0814; --border:#3A1236; --grid:#1E0D1C; --muted:#8A6F86; --dim:#5A3F56; --accent: var(--magenta); }
+  body[data-tab="pipeline"] { --bg:#06080C; --panel:#0A0E14; --border:#1F2A36; --grid:#121A24; --muted:#7D8B9C; --dim:#465466; --accent: var(--amber); }
+  /* ---- console (look of the "AI Trading Bot" slide: amber = Kronos, violet = EWMA baseline) ---- */
+  .cbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 2px 0; }
+  .cbar.title { font-size: 13px; color: var(--text); }
+  .cbar .k-amber { color: var(--amber); font-weight: 600; font-size: 15px; letter-spacing: .06em; }
+  .cbar .k-violet { color: var(--violet); font-weight: 600; font-size: 15px; letter-spacing: .06em; }
+  .teal { color: var(--teal); } .amber { color: var(--amber); } .violet { color: var(--violet); }
+  .cchips { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; margin: 8px 0; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); }
+  .cchips span { font-size: 11px; padding: 3px 10px; border-radius: 4px; border: 1px solid var(--dim); color: var(--muted); }
+  .cchips .ok { border-color: color-mix(in srgb, var(--teal) 60%, transparent); color: var(--teal); background: color-mix(in srgb, var(--teal) 8%, transparent); }
+  .cchips .kr { border-color: color-mix(in srgb, var(--amber) 60%, transparent); color: var(--amber); background: color-mix(in srgb, var(--amber) 8%, transparent); }
+  .cchips .bl { border-color: color-mix(in srgb, var(--violet) 60%, transparent); color: var(--violet); background: color-mix(in srgb, var(--violet) 8%, transparent); }
+  .cchips .on { box-shadow: 0 0 0 1px currentColor, 0 0 12px color-mix(in srgb, currentColor 40%, transparent); }
+  .hero { display: grid; grid-template-columns: 1.65fr 1fr; gap: 12px; margin-top: 8px; }
+  .sphere { position: relative; min-height: 520px; padding: 0; overflow: hidden;
+            background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--teal) 7%, transparent), transparent 65%), var(--panel); }
+  .sphere canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: pan-y; }
+  .sphere canvas:active { cursor: grabbing; }
+  .sphere canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .sbtns { position: absolute; top: 66px; right: 14px; display: flex; gap: 6px; }
+  .sbtns button { font: inherit; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; padding: 4px 10px;
+                  color: var(--muted); background: var(--overlay); border: 1px solid var(--border); border-radius: 4px; }
+  .sbtns button:hover { color: var(--text); border-color: var(--dim); }
+  .sbtns button[aria-pressed="true"] { color: var(--amber); border-color: var(--amber); box-shadow: 0 0 10px color-mix(in srgb, var(--amber) 30%, transparent); }
+  .sbtns button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .sphere .ov { position: absolute; font-size: 11px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; pointer-events: none; }
+  .sphere .deg { left: 10px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: space-around; padding: 30px 0; color: var(--dim); }
+  .sphere .callout { left: 14px; bottom: 14px; right: auto; max-width: min(380px, 80%); margin: 0; background: var(--overlay);
+                     text-transform: none; letter-spacing: 0; color: var(--gold); }
+  .side { display: grid; gap: 12px; align-content: start; }
+  .tele .row { font-size: 12px; padding: 1px 0; }
+  .pmetric { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: 8px; }
+  .pair { display: grid; grid-template-columns: 52px 1fr 56px; gap: 8px; align-items: center; font-size: 11px; margin: 4px 0; }
+  .pair .bar { height: 8px; } .pair .bar i.kr { background: var(--amber); } .pair .bar i.bl { background: var(--violet); } .pair .bar i.ca { background: var(--teal); }
+  .queue { font-size: 11px; color: var(--muted); }
+  .queue div { display: grid; grid-template-columns: 12px 1fr auto; gap: 6px; padding: 2px 0; }
+  .queue b { color: var(--amber); font-weight: 400; }
+  .pvbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .pvbar select, .pvbar button { font: inherit; font-size: 12px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+  .pvbar button:hover, .pvbar select:hover { border-color: var(--accent); }
+  .pvbar button:focus-visible, .pvbar select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pvgrid { display: grid; grid-template-columns: 1fr 260px; gap: 12px; }
+  #pvchart { height: 300px; }
+  .pvside .big { font-size: 34px; }
+  body[data-tab="paper"] .big.up { color: var(--up); } body[data-tab="paper"] .big.down { color: var(--down); }
+  .stream { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
+  .stream .bignum { font-size: 26px; font-weight: 600; color: var(--amber); }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.5 var(--font); font-variant-numeric: tabular-nums; transition: background .2s; }
+  .kf { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-bottom: 12px; }
+  header h1 { margin: 0; font-size: 14px; letter-spacing: .12em; color: var(--accent); }
+  header h1 b { color: var(--text); }
+  .meta { color: var(--muted); }
+  .live { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+  .dot.on { background: var(--up); box-shadow: 0 0 8px var(--up); }
+  #price { font-size: 16px; font-weight: 600; }
+  .badge { text-transform: uppercase; border: 1px solid currentColor; border-radius: 4px; padding: 1px 8px; font-size: 11px; font-weight: 600; letter-spacing: .08em; }
+  .paper { color: var(--amber); } .stale, .fake { color: var(--down); }
+  [hidden] { display: none !important; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .seg button { font: inherit; font-size: 11px; font-weight: 600; letter-spacing: .06em; padding: 3px 10px; cursor: pointer;
+                color: var(--muted); background: transparent; border: 0; border-right: 1px solid var(--border); }
+  .seg button:last-child { border-right: 0; }
+  .seg button[aria-pressed="true"] { color: var(--bg); background: var(--accent); }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  #fxnote { font-size: 11px; }
+  nav { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; overflow-x: auto; }
+  nav button { font: inherit; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: none;
+               border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+  nav button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  nav button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .chartbox { height: 380px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+              background: radial-gradient(ellipse at 70% 60%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 60%), var(--panel); }
+  #eqchart { height: 240px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--muted); font-size: 11px; margin-top: 6px; }
+  .legend i { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+  .card.glow { border-color: var(--accent); box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .card h2 { font-family: var(--label-font); margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; display: flex; justify-content: space-between; gap: 8px; }
+  .card h2 span { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--dim); }
+  .big { font-family: var(--num-font); font-size: 40px; font-weight: 600; color: var(--gold); line-height: 1.1; text-shadow: 0 0 18px color-mix(in srgb, var(--gold) 25%, transparent); }
+  body[data-tab="paper"] .big { color: var(--text); text-shadow: 0 0 18px color-mix(in srgb, var(--magenta) 40%, transparent); }
+  .row { display: flex; justify-content: space-between; gap: 8px; }
+  .row .k { color: var(--muted); }
+  .up { color: var(--up); } .down { color: var(--down); } .gold { color: var(--gold); } .acc { color: var(--accent); }
+  .range { position: relative; height: 6px; border-radius: 3px; margin: 10px 0 4px;
+           background: linear-gradient(90deg, var(--down), var(--dim) 50%, var(--up)); opacity: .8; }
+  .range b { position: absolute; top: -4px; width: 2px; height: 14px; background: var(--gold); }
+  .dots { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; margin: 10px 0 6px; }
+  .dots span { aspect-ratio: 1; border-radius: 2px; }
+  .runs { grid-template-columns: repeat(24, 1fr); }
+  .note { color: var(--dim); font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: right; padding: 3px 0 3px 8px; font-weight: 400; }
+  .scroll th, .scroll td { white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; padding-left: 0; color: var(--muted); }
+  thead th { color: var(--dim); font-size: 11px; border-bottom: 1px solid var(--grid); }
+  .scroll { overflow-x: auto; }
+  .warn { margin-top: 8px; padding: 6px 8px; border: 1px solid var(--amber); border-radius: 4px; color: var(--amber); font-size: 11px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 11px; }
+  .chip.hit { border-color: var(--up); color: var(--up); } .chip.miss { border-color: var(--down); color: var(--down); }
+  ol { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; }
+  ol li::marker { color: var(--dim); }
+  .xlog { list-style: none; padding: 0; margin: 0; font-size: 12px; max-height: 260px; overflow-y: auto; }
+  .xlog li { display: grid; grid-template-columns: 92px 52px 1fr; gap: 8px; padding: 2px 0; border-bottom: 1px solid var(--grid); }
+  .xlog .t { color: var(--dim); } .k-in { color: var(--cyan); } .k-win { color: var(--up); } .k-loss { color: var(--down); } .k-skip { color: var(--dim); }
+  .stage { display: grid; grid-template-columns: 22px 1fr 90px 60px; gap: 8px; align-items: center; padding: 3px 0; }
+  .bar { height: 6px; border-radius: 3px; background: var(--grid); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); }
+  .callout { border: 1px solid var(--gold); color: var(--gold); border-radius: 6px; padding: 8px 10px; font-size: 12px; margin-top: 8px; }
+  svg text { font-family: var(--font); }
+  .wide { grid-column: span 2; } .full { grid-column: 1 / -1; }
+  footer { margin-top: 12px; color: var(--dim); font-size: 11px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+  .empty { padding: 48px 16px; text-align: center; color: var(--muted); }
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; } .pvgrid { grid-template-columns: 1fr; } #pvchart { height: 240px; } .sphere { min-height: 430px; }
+    .ov-spin, .sphere .deg { display: none; } .sbtns { top: 34px; right: 8px; } .sphere .callout { font-size: 11px; left: 8px; right: 8px; bottom: 8px; max-width: none; } .stream { grid-template-columns: 1fr; }
+    .grid { grid-template-columns: 1fr; } .wide { grid-column: auto; }
+    .chartbox { height: 280px; } #eqchart { height: 200px; } .big { font-size: 34px; } .live { margin-left: 0; }
+    .xlog li { grid-template-columns: 1fr; gap: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { body { transition: none; } }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;550;600&display=swap" rel="stylesheet">
+<style>
+/* Shared calm base for the FUMO and Quest skins: FUMO's graphite palette, no glow, one accent.
+   Tokens are set on body so they beat the engine's per-tab palettes. */
+html[data-skin] body, html[data-skin] body[data-tab] {
+  --bg:#060708; --panel:#101315; --raised:#161a1c; --active:#1c2124; --border:#262c2f; --border-strong:#363e42; --grid:#1a1f22;
+  --text:#f2f4f4; --text-2:#cdd3d5; --muted:#a2aaad; --dim:#858d91;
+  --up:#9cc8b4; --down:#eda3a3; --gold:#e0bb8f; --amber:#e0bb8f; --violet:#b6a4ee; --cyan:#8db7e6; --magenta:#e4e9ea;
+  --teal:#cdd3d5; --shell:#a2aaad; --overlay:rgba(6,7,8,.82);
+  --accent:#e4e9ea; --on-accent:#101416; --warn-bg:#2b2319; --bad-bg:#2b1a1b;
+}
+html[data-skin] body { transition: none; }
+html[data-skin] .kf { max-width: 1180px; padding: 24px 16px 40px; }
+
+/* surfaces: no glow, no gradients */
+html[data-skin] .card { background: var(--panel); border: 1px solid var(--border-strong); border-radius: var(--r-card); padding: 18px 20px; }
+html[data-skin] .card.glow { border-color: var(--border-strong); box-shadow: none; }
+html[data-skin] .chartbox, html[data-skin] .sphere { background: var(--panel); border-color: var(--border-strong); border-radius: var(--r-card); }
+html[data-skin] .cchips { background: var(--panel); border-color: var(--border-strong); border-radius: var(--r-card); }
+html[data-skin] .big, html[data-skin] body[data-tab="paper"] .big { color: var(--text); text-shadow: none; font-weight: 550; letter-spacing: -1.2px; }
+html[data-skin] body[data-tab="paper"] .big.up { color: var(--up); } html[data-skin] body[data-tab="paper"] .big.down { color: var(--down); }
+html[data-skin] .dot.on { box-shadow: none; }
+html[data-skin] .cchips .on { box-shadow: inset 0 0 0 1px currentColor; }
+html[data-skin] .sbtns button { border-radius: var(--r-ctl); border-color: var(--border-strong); }
+html[data-skin] .sbtns button[aria-pressed="true"] { color: var(--text); background: var(--active); border-color: var(--border-strong); box-shadow: none; }
+html[data-skin] .callout { border-color: var(--border-strong); background: var(--overlay); color: var(--text-2); border-radius: var(--r-ctl); }
+html[data-skin] .warn { border: 1px solid transparent; background: var(--warn-bg); color: var(--gold); border-radius: var(--r-ctl); }
+html[data-skin] .bar i { background: var(--text-2); }
+html[data-skin] .k-in { color: var(--text-2); }
+html[data-skin] .stream .bignum { color: var(--text); font-family: var(--num-font); font-weight: 550; }
+
+/* type: calm sizes, sentence case outside the small labels */
+html[data-skin] body { font-size: 14px; letter-spacing: -.1px; }
+html[data-skin] .card h2 { color: var(--text-2); }
+html[data-skin] .card h2 span { color: var(--dim); }
+html[data-skin] .note { color: var(--dim); font-size: 12px; }
+html[data-skin] .legend { font-size: 12px; }
+html[data-skin] header h1 { color: var(--text); letter-spacing: -.5px; font-weight: 550; font-size: 24px; text-transform: none; }
+html[data-skin] #price { font-family: var(--num-font); }
+html[data-skin] .cbar { letter-spacing: .04em; }
+html[data-skin] .cbar .k-amber, html[data-skin] .cbar .k-violet { font-size: 13px; letter-spacing: .02em; }
+
+/* controls */
+html[data-skin] .seg { border-color: var(--border-strong); border-radius: var(--r-ctl); }
+html[data-skin] .seg button { font-size: 12px; letter-spacing: .02em; border-right-color: var(--border-strong); padding: 4px 12px; }
+html[data-skin] .pvbar select, html[data-skin] .pvbar button { background: var(--raised); border-color: var(--border-strong); border-radius: var(--r-ctl); }
+html[data-skin] nav { border-bottom-color: var(--border); }
+html[data-skin] nav button { text-transform: none; letter-spacing: 0; font-size: 14px; }
+html[data-skin] .chip { border-radius: 50px; }
+html[data-skin] :focus-visible { outline-color: var(--accent); }
+html[data-skin] .badge { text-transform: none; }
+html[data-skin] header { align-items: center; }
+html[data-skin] .cbar.title { text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 500; }
+/* FUMO: Inter throughout, 15px cards, uppercase 11px labels, nav "on" = raised graphite pill (measured from the live app). */
+html[data-skin="fumo"] body, html[data-skin="fumo"] body[data-tab] {
+  --font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --num-font: var(--font); --label-font: var(--font); --r-card: 15px; --r-ctl: 9px;
+}
+html[data-skin="fumo"] .card h2 { font-size: 11px; font-weight: 400; letter-spacing: 1px; }
+html[data-skin="fumo"] nav { gap: 6px; border-bottom: 0; padding-bottom: 4px; }
+html[data-skin="fumo"] nav button { border: 1px solid transparent; border-radius: 9px; padding: 7px 14px; color: var(--muted); }
+html[data-skin="fumo"] nav button[aria-selected="true"] { color: var(--text); background: var(--active); border-color: var(--border-strong); }
+html[data-skin="fumo"] .seg button[aria-pressed="true"] { color: var(--text); background: var(--active); }
+html[data-skin="fumo"] .badge { border: 1px solid var(--border-strong); border-radius: 50px; padding: 2px 10px; font-weight: 500; letter-spacing: .06em; }
+html[data-skin="fumo"] .badge.paper { background: var(--warn-bg); color: var(--gold); }
+html[data-skin="fumo"] .badge.stale, html[data-skin="fumo"] .badge.fake { background: var(--bad-bg); color: var(--down); }
+.hdr-back { display: inline-block; color: var(--muted); font-size: 13px; text-decoration: none; margin-bottom: 6px; padding: 4px 0; }
+.hdr-back:hover, .hdr-back:focus-visible { color: var(--text); }
+html[data-skin="fumo"] .hdr-kick { display: block; color: var(--muted); font-size: 13px; margin-bottom: 2px; }
+</style>
+</head>
+<body data-tab="forecast">
+<div class="kf">
+  <header>
+    <div><a class="hdr-back" href="../">← FUMO</a><span class="hdr-kick" id="kick"></span><h1>Trading desk</h1></div>
+    <span class="meta" id="sub">BTCUSDT · 1h</span>
+    <span class="badge paper">Paper only</span>
+    <span class="seg" role="group" aria-label="Coin">
+      <button type="button" data-coin="BTCUSDT">BTC</button><button type="button" data-coin="ETHUSDT">ETH</button><button type="button" data-coin="SOLUSDT">SOL</button>
+    </span>
+    <span class="seg" role="group" aria-label="Display currency">
+      <button type="button" data-cur="USD">USD</button><button type="button" data-cur="ZAR">ZAR</button>
+    </span>
+    <span class="badge stale" id="stale" hidden>Stale</span>
+    <span class="badge fake" id="fake" hidden>Fake data</span>
+    <span class="live"><span class="dot" id="wsdot" aria-hidden="true"></span><span class="meta">live</span><span id="price">–</span></span>
+  </header>
+  <nav role="tablist" aria-label="Views">
+    <button role="tab" id="t-forecast" aria-controls="v-forecast" aria-selected="true">Forecast</button>
+    <button role="tab" id="t-paper" aria-controls="v-paper" aria-selected="false" tabindex="-1">Paper trading</button>
+    <button role="tab" id="t-pipeline" aria-controls="v-pipeline" aria-selected="false" tabindex="-1">Console</button>
+
+  </nav>
+
+  <div id="empty" class="empty" hidden></div>
+  <main id="main" hidden>
+    <!-- ===== Forecast (Kronos dashboard) ===== -->
+    <section role="tabpanel" id="v-forecast" aria-labelledby="t-forecast">
+      <div id="chart" class="chartbox" role="img" aria-label="BTC hourly candles with the next 24 hours of sampled forecast paths and p10, median and p90 lines"></div>
+      <div class="legend">
+        <span><i style="background:var(--gold)"></i>median (p50)</span>
+        <span><i style="background:var(--cyan)"></i>p10 / p90 band (calibrated)</span>
+        <span><i style="background:var(--dim)"></i>raw model band</span>
+        <span><i style="background:var(--up);opacity:.5"></i>paths ending up</span>
+        <span><i style="background:var(--down);opacity:.5"></i>paths ending down</span>
+      </div>
+      <div class="grid">
+        <section class="card">
+          <h2>Next 24h · median <span id="ftime"></span></h2>
+          <div class="big" id="median">–</div>
+          <div class="range" aria-hidden="true"><b id="mark"></b></div>
+          <div class="row"><span class="k">p10</span><span class="down" id="p10">–</span></div>
+          <div class="row"><span class="k">p90</span><span class="up" id="p90">–</span></div>
+          <div class="row"><span class="k">spread</span><span id="spread">–</span></div>
+          <div class="row"><span class="k">last close</span><span id="last">–</span></div>
+          <div class="note" id="calnote" style="margin-top:6px"></div>
+        </section>
+        <section class="card">
+          <h2>Paths <span id="nsamples"></span></h2>
+          <div class="row" style="font-size:22px;font-weight:600"><span class="up" id="nup">–</span><span class="down" id="ndown">–</span></div>
+          <div class="dots" id="dots" role="img"></div>
+          <div class="note">How the model's sampled paths lean. A lean is not a signal: Kronos direction calls test at ~51%.</div>
+        </section>
+        <section class="card">
+          <h2>Scoreboard <span>vs EWMA baseline</span></h2>
+          <table>
+            <thead><tr><th>24h ahead</th><th>Kronos raw</th><th>calibrated</th><th>EWMA</th></tr></thead>
+            <tbody>
+              <tr><td>band coverage (target 80%)</td><td id="cov">–</td><td id="covc">–</td><td id="cove">–</td></tr>
+              <tr><td>band width</td><td id="wid">–</td><td id="widc">–</td><td id="wide">–</td></tr>
+              <tr><td>CRPS, lower is better</td><td id="crps">–</td><td id="crpsc">–</td><td id="crpse">–</td></tr>
+              <tr><td>direction right</td><td id="dir" colspan="3">–</td></tr>
+            </tbody>
+          </table>
+          <div class="note" id="nscored"></div>
+          <div class="warn" id="toofew" hidden>Too few independent 24h windows to judge yet (need 100, about 100 days).</div>
+        </section>
+        <section class="card wide">
+          <h2>Recent forecasts <span>did the real price land inside p10–p90?</span></h2>
+          <div class="chips" id="chips"></div>
+        </section>
+        <section class="card">
+          <h2>Run log <span id="gen"></span></h2>
+          <ol id="log"></ol>
+        </section>
+      </div>
+    </section>
+
+    <!-- ===== Paper trading (Gravia terminal, honest version) ===== -->
+    <section role="tabpanel" id="v-paper" aria-labelledby="t-paper" hidden>
+      <div class="grid">
+        <section class="card glow">
+          <h2>Paper account <span id="pstart">starts at $1,000</span></h2>
+          <div class="big" id="eq">–</div>
+          <div class="row"><span class="k">return</span><span id="ret">–</span></div>
+          <div class="row"><span class="k">closed trades</span><span id="ntr">–</span></div>
+          <div class="row"><span class="k">win rate</span><span id="wr">–</span></div>
+          <div class="row"><span class="k">P&amp;L after costs</span><span id="pnl">–</span></div>
+          <div class="row"><span class="k">fees + slippage paid</span><span id="fees">–</span></div>
+          <div class="row"><span class="k">max drawdown</span><span class="down" id="mdd">–</span></div>
+          <div class="row"><span class="k">vs 24h momentum</span><span id="vsm">–</span></div>
+          <div class="warn" id="ptoofew" hidden>Fewer than 30 closed trades: the win rate and P&amp;L are noise so far.</div>
+        </section>
+        <section class="card wide">
+          <h2>Equity <span>paper account value, hourly</span></h2>
+          <div id="eqchart" class="chartbox" role="img" aria-label="Paper account equity over time, Kronos against the 24h momentum benchmark"></div>
+          <div class="legend"><span><i style="background:var(--magenta)"></i>Kronos signal</span><span><i style="background:var(--violet)"></i>benchmark: 24h momentum, same rules</span></div>
+          <div class="scroll"><table style="margin-top:8px">
+            <thead><tr><th>same rules, same costs</th><th>return</th><th>trades</th><th>win rate</th><th>max drawdown</th><th>costs</th></tr></thead>
+            <tbody id="vs"></tbody>
+          </table></div>
+        </section>
+        <section class="card full glow" id="preview">
+          <h2>Trade preview <span>paper trades only · replayed hour by hour, or live for the open trade</span></h2>
+          <div class="pvbar">
+            <label class="note" for="pv-trade">trade</label>
+            <select id="pv-trade"></select>
+            <button type="button" id="pv-play">▶ Play</button>
+            <button type="button" id="pv-restart">↺ Restart</button>
+            <label class="note" for="pv-speed">speed</label>
+            <select id="pv-speed"><option value="900">slow</option><option value="450" selected>normal</option><option value="150">fast</option></select>
+          </div>
+          <div class="pvgrid">
+            <div id="pvchart" class="chartbox" role="img" aria-label="Candles of the selected trade with entry, stop and exit lines"></div>
+            <div class="pvside">
+              <div class="note" id="pv-status">–</div>
+              <div class="big" id="pv-pnl" aria-live="polite">–</div>
+              <div class="note" id="pv-pnlpct"></div>
+              <div class="bar" style="margin:10px 0 4px"><i id="pv-prog" style="width:0%"></i></div>
+              <div class="note" id="pv-hours"></div>
+              <div id="pv-rows" style="margin-top:8px"></div>
+            </div>
+          </div>
+        </section>
+        <section class="card">
+          <h2>Open position</h2>
+          <div id="openpos"></div>
+        </section>
+        <section class="card wide">
+          <h2>Execution log <span id="xlognote">newest first</span></h2>
+          <ul class="xlog" id="xlog"></ul>
+        </section>
+        <section class="card full">
+          <h2>Closed trades <span id="ntrades"></span></h2>
+          <div class="scroll">
+            <table>
+              <thead><tr><th>#</th><th>side</th><th>opened</th><th>closed</th><th>entry</th><th>exit</th><th>size</th><th>why</th><th>costs</th><th>P&amp;L</th></tr></thead>
+              <tbody id="trades"></tbody>
+            </table>
+          </div>
+          <div class="note" id="rules" style="margin-top:8px"></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ===== Console (look of the "AI Trading Bot" slide, driven by real data) ===== -->
+    <section role="tabpanel" id="v-pipeline" aria-labelledby="t-pipeline" hidden>
+      <div class="cbar title"><span>Forecast architecture</span><span id="c-top"></span></div>
+      <div class="cbar"><span><span class="k-amber">KRONOS</span> <span class="dim">+</span> <span class="k-violet">EWMA BASELINE</span> &nbsp;· forecast stack | <span id="c-iter"></span></span><span class="teal" id="c-cov"></span></div>
+      <div class="cchips" id="c-chips" aria-label="Pipeline stages in the last run"></div>
+      <div class="cbar"><span id="c-status1"></span><span id="c-status2"></span></div>
+      <div class="hero">
+        <section class="card sphere" aria-label="Price history as a chain around a sphere, with the sampled forecast paths fanning out from the newest candle">
+          <canvas id="sphere" tabindex="0" aria-label="Rotatable sphere. Drag, or use the arrow keys, to turn it; scroll, pinch or press + and − to zoom; double-click or press 0 to reset."></canvas>
+          <div class="ov ov-spin" style="top:46px;right:14px;color:var(--dim)">drag to rotate · scroll or pinch to zoom</div>
+          <div class="sbtns">
+            <button id="szout" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+            <button id="szin" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+            <button id="sreset" type="button" title="Face the NOW point and reset the zoom">⟲ Reset</button>
+            <button id="sfollow" type="button" aria-pressed="false" title="Keep the camera on the trade and its forecast path">Follow trade</button>
+          </div>
+          <div class="ov deg" aria-hidden="true"><span>+high</span><span>0 deg</span><span>-low</span></div>
+          <div class="ov ov-spin" style="top:12px;right:14px;text-align:right;white-space:pre-line" id="spin">SPIN 000.0° · AXIS LOCK</div>
+          <div class="ov" style="top:12px;left:14px">HISTORY CHAIN · 120H &nbsp;<span class="teal">━</span> &nbsp;FUTURES <span class="up">━</span><span class="down">━</span> &nbsp;MEDIAN <span class="gold">━</span></div>
+          <div class="ov callout" id="decision"></div>
+        </section>
+        <div class="side">
+          <section class="card">
+            <h2>Model vs baseline <span>24h band</span></h2>
+            <div id="pairs"></div>
+          </section>
+          <section class="card">
+            <h2>Cycle state <span>synchroniser</span></h2>
+            <div id="stages"></div>
+          </section>
+          <section class="card tele">
+            <h2>Telemetry readout</h2>
+            <div id="tele"></div>
+          </section>
+          <section class="card">
+            <h2>Run pods <span id="runcount"></span></h2>
+            <div class="dots runs" id="runs" role="img"></div>
+            <div class="note">Last 48 hourly runs. Red = no forecast that hour.</div>
+          </section>
+          <section class="card">
+            <h2>Dispatch queue <span>live commits</span></h2>
+            <div class="queue" id="queue"></div>
+          </section>
+        </div>
+      </div>
+      <section class="card full" style="margin-top:12px">
+        <h2>Price stream &amp; forecast <span>last 120h · median next 24h</span></h2>
+        <div class="stream"><div id="stream"></div><div><div class="note">LAST</div><div class="bignum" id="streamlast">–</div></div></div>
+      </section>
+      <div class="grid">
+        <section class="card wide">
+          <h2>Forecast distribution <span>24h return of every sampled path</span></h2>
+          <div id="hist"></div>
+        </section>
+        <section class="card">
+          <h2>Skip reasons <span>paper account, all time</span></h2>
+          <div id="pareto"></div>
+        </section>
+        <section class="card full">
+          <h2>Drift <span>last 7 days vs all time</span></h2>
+          <div id="drift"></div>
+        </section>
+      </div>
+    </section>
+
+    <footer>
+      <span id="model"></span>
+      <span id="fxnote"></span>
+      <span>Paper only · nothing trades · research tool, not financial advice</span>
+    </footer>
+  </main>
+</div>
+
+<script>
+(() => {
+  // On GitHub Pages the job's files live on this repo's 'trading-data' branch (replaced each run, so the repo never grows).
+  // ponytail: assumes a project site (<you>.github.io/<repo>/); a <you>.github.io user site would need the repo name here.
+  const GH = location.hostname.endsWith('.github.io') ? `https://raw.githubusercontent.com/${location.hostname.split('.')[0]}/${location.pathname.split('/')[1]}/trading-data/` : '';
+  const DATA_URL = (GH || 'data/') + '{SYMBOL}/forecast.json';  // one folder per coin
+  const REFRESH_MS = 5 * 60 * 1000, STALE_S = 90 * 60;
+  const $ = id => document.getElementById(id);
+  const css = n => getComputedStyle(document.body).getPropertyValue(n).trim();
+  const pref = (k, d) => { try { return localStorage.getItem('kd.' + k) || d; } catch { return d; } };
+  const savePref = (k, v) => { try { localStorage.setItem('kd.' + k, v); } catch {} };
+  let coin = pref('coin', 'BTCUSDT'), cur = pref('cur', 'USD'), fx = 1, raw = null;
+  const cs = () => cur === 'ZAR' ? 'R' : '$';
+  const dp = v => Math.abs(v) < 1000 ? 2 : 0;  // cents for small prices (SOL), whole units for big ones
+  const usd = v => v == null ? '–' : (v < 0 ? '-' : '') + cs() + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: dp(v), maximumFractionDigits: dp(v) });
+  const usd2 = v => v == null ? '–' : (v < 0 ? '-' : '') + cs() + Math.abs(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const logText = t => cur === 'USD' ? t : t + '  (USD)';  // the job writes its log in USD
+  const pct = v => v == null ? '–' : (v * 100).toFixed(1) + '%';
+  const hhmm = t => new Date(t * 1000).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+  const svgEsc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+
+  let data, chart, candles, line, bands = [], paths = [], eqChart, eqSeries, benchSeries, livePx = null;
+
+  // ---------- tabs ----------
+  const tabs = ['forecast', 'paper', 'pipeline'];
+  function show(name) {
+    document.body.dataset.tab = name;
+    tabs.forEach(t => {
+      const on = t === name;
+      $('t-' + t).setAttribute('aria-selected', on);
+      $('t-' + t).tabIndex = on ? 0 : -1;
+      $('v-' + t).hidden = !on;
+    });
+    if (data) requestAnimationFrame(() => render(data));  // after layout: re-read this tab's palette and real sizes
+  }
+  tabs.forEach((t, i) => {
+    $('t-' + t).onclick = () => show(t);
+    $('t-' + t).onkeydown = e => {
+      const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (d) { const n = tabs[(i + d + tabs.length) % tabs.length]; show(n); $('t-' + n).focus(); }
+    };
+  });
+
+  // ---------- charts ----------
+  const chartOpts = () => ({
+    autoSize: true,
+    layout: { background: { type: 'solid', color: 'transparent' }, textColor: css('--muted'), fontFamily: css('--font'), attributionLogo: true },
+    grid: { vertLines: { color: css('--grid') }, horzLines: { color: css('--grid') } },
+    rightPriceScale: { borderColor: css('--border') },
+    timeScale: { borderColor: css('--border'), timeVisible: true, rightOffset: 2 },
+    crosshair: { horzLine: { color: css('--dim') }, vertLine: { color: css('--dim') } },
+  });
+  const pf = () => (data && data.last.close < 1000) ? { type: 'price', precision: 2, minMove: 0.01 } : { type: 'price', precision: 0, minMove: 1 };
+
+  function setupCharts() {
+    const LC = window.LightweightCharts;
+    chart = LC.createChart($('chart'), chartOpts());
+    candles = chart.addSeries(LC.CandlestickSeries, {
+      upColor: css('--up'), downColor: css('--down'), wickUpColor: css('--up'), wickDownColor: css('--down'), borderVisible: false, priceFormat: pf(),
+    });
+    line = (color, extra) => chart.addSeries(LC.LineSeries, { color, lineWidth: 1, priceLineVisible: false,
+      lastValueVisible: false, crosshairMarkerVisible: false, priceFormat: pf(), ...extra });
+    eqChart = LC.createChart($('eqchart'), chartOpts());
+    eqSeries = eqChart.addSeries(LC.AreaSeries, { lineWidth: 2, priceFormat: { type: 'price', precision: 2, minMove: 0.01 } });
+    benchSeries = eqChart.addSeries(LC.LineSeries, { lineWidth: 2, lastValueVisible: true, priceLineVisible: false, priceFormat: { type: 'price', precision: 2, minMove: 0.01 } });
+  }
+
+  // ---------- forecast tab ----------
+  function renderForecast(d) {
+    const LC = window.LightweightCharts, f = d.forecast, last = d.last.close, lastT = d.last.t, s = d.score || {};
+    chart.applyOptions(chartOpts()); candles.applyOptions({ priceFormat: pf() });
+    candles.setData(d.candles.map(([time, open, high, low, close]) => ({ time, open, high, low, close })));
+    // Every forecast line starts at the last close so the fan grows out of the candles.
+    const series = vals => [{ time: lastT, value: last }, ...f.t.map((time, i) => ({ time, value: vals[i] }))];
+    [...paths, ...bands].forEach(p => chart.removeSeries(p));
+    paths = f.paths.map(p => {  // added before the bands so the median and band draw on top
+      const sr = line((p[p.length - 1] > last ? css('--up') : css('--down')) + '40');
+      sr.setData(series(p));
+      return sr;
+    });
+    const lo10 = f.p10_cal || f.p10, hi90 = f.p90_cal || f.p90;  // older files have no calibrated band
+    bands = [line(css('--dim'), { lineStyle: LC.LineStyle.Dotted }), line(css('--dim'), { lineStyle: LC.LineStyle.Dotted }),
+             line(css('--cyan'), { lineStyle: LC.LineStyle.Dashed, lastValueVisible: true }),
+             line(css('--gold'), { lineWidth: 2, lastValueVisible: true }),
+             line(css('--cyan'), { lineStyle: LC.LineStyle.Dashed, lastValueVisible: true })];
+    [f.p10, f.p90, lo10, f.p50, hi90].forEach((v, i) => bands[i].setData(series(v)));
+    chart.timeScale().fitContent();
+
+    const n = f.p50.length - 1, med = f.p50[n], lo = lo10[n], hi = hi90[n], cal = d.calibration;
+    $('ftime').textContent = 'to ' + hhmm(f.t[n]);
+    $('median').textContent = usd(med);
+    $('p10').textContent = usd(lo); $('p90').textContent = usd(hi);
+    $('spread').textContent = usd(hi - lo) + ' (' + ((hi - lo) / last * 100).toFixed(1) + '%)';
+    $('calnote').textContent = !cal ? '' : cal.active ? `band calibrated ×${cal.k.toFixed(2)} from the last ${cal.from_scored} scored forecasts`
+                                                    : `raw band: calibration starts after 48 scored forecasts (${cal.from_scored} so far)`;
+    $('last').textContent = usd(last) + ' · median ' + ((med / last - 1) * 100).toFixed(2) + '%';
+    $('mark').style.left = Math.min(100, Math.max(0, (med - lo) / (hi - lo) * 100)) + '%';
+
+    const L = d.lean;
+    $('nsamples').textContent = L.n + ' samples';
+    $('nup').textContent = L.up + ' up'; $('ndown').textContent = L.down + ' down';
+    $('dots').replaceChildren(...Array.from({ length: L.n }, (_, i) => el('span', { style: `background:${i < L.up ? css('--up') : css('--down')}` })));
+    $('dots').setAttribute('aria-label', `${L.up} of ${L.n} paths end above the last close`);
+
+    const ci = s.direction_ci || [0, 1];
+    $('cov').textContent = pct(s.coverage); $('cove').textContent = pct(s.coverage_ewma); $('covc').textContent = pct(s.coverage_cal);
+    $('widc').textContent = s.width_pct_cal == null ? '–' : s.width_pct_cal.toFixed(1) + '%';
+    $('crpsc').textContent = s.crps_cal?.toFixed(2) ?? '–';
+    $('wid').textContent = s.width_pct == null ? '–' : s.width_pct.toFixed(1) + '%';
+    $('wide').textContent = s.width_pct_ewma == null ? '–' : s.width_pct_ewma.toFixed(1) + '%';
+    $('crps').textContent = s.crps?.toFixed(2) ?? '–'; $('crpse').textContent = s.crps_ewma?.toFixed(2) ?? '–';
+    if (s.n) {  // green when Kronos beats the baseline on that measure
+      $('cov').className = Math.abs(s.coverage - .8) <= Math.abs(s.coverage_ewma - .8) ? 'up' : 'down';
+      $('crps').className = s.crps <= s.crps_ewma ? 'up' : 'down';
+      if (s.coverage_cal != null) {
+        $('covc').className = Math.abs(s.coverage_cal - .8) <= Math.abs(s.coverage_ewma - .8) ? 'up' : 'down';
+        $('crpsc').className = s.crps_cal <= s.crps_ewma ? 'up' : 'down';
+      }
+    }
+    $('dir').textContent = s.n ? `${pct(s.direction)}  (95% range ${pct(ci[0])}–${pct(ci[1])})` : '–';
+    $('nscored').textContent = s.n ? `${s.n} forecasts scored · ${s.independent} independent 24h windows` : 'No forecast has reached its 24h target yet.';
+    $('toofew').hidden = !(s.n == null || s.too_few);
+
+    $('chips').replaceChildren(...(d.recent.length ? d.recent.slice().reverse().map(r =>
+      el('span', { className: 'chip ' + ((r.hit_cal ?? r.hit) ? 'hit' : 'miss'), textContent: `${hhmm(r.t)} ${(r.hit_cal ?? r.hit) ? 'HIT' : 'MISS'}`,
+                   title: `forecast ${usd(r.p10)}–${usd(r.p90)}, median ${usd(r.p50)} · real ${usd(r.real)}` }))
+      : [el('span', { className: 'note', textContent: 'No scored forecasts yet.' })]));
+    $('log').replaceChildren(...d.log.map(t => el('li', { textContent: t })));
+    $('gen').textContent = 'ran ' + hhmm(d.generated_at);
+  }
+
+  // ---------- paper tab ----------
+  // ---------- trade preview: replay a paper trade candle by candle, or follow the open one live ----------
+  const PV = { chart: null, series: null, lines: [], timer: 0, i: 0, trade: null, bars: [], key: null };
+
+  function pvTrades(d) {  // trades whose whole window is inside the candles we have, plus the open one
+    const first = d.candles[0][0], p = d.paper, out = [];
+    if (p.open) out.push({ ...p.open, open: true, t_in: p.open.t, id: p.open.id, why: 'open' });
+    (p.trade_list || []).slice().reverse().forEach(t => { if (t.t_in >= first) out.push(t); });
+    return out;
+  }
+
+  function pvSetup(d) {
+    const LC = window.LightweightCharts;
+    if (!PV.chart) {
+      PV.chart = LC.createChart($('pvchart'), chartOpts());
+      PV.series = PV.chart.addSeries(LC.CandlestickSeries, { upColor: css('--up'), downColor: css('--down'), wickUpColor: css('--up'),
+        wickDownColor: css('--down'), borderVisible: false, priceFormat: pf() });
+      $('pv-trade').onchange = () => pvLoad(data);
+      $('pv-restart').onclick = () => { pvLoad(data); pvPlay(); };
+      $('pv-play').onclick = () => (PV.timer ? pvPause() : pvPlay());
+    }
+    PV.chart.applyOptions(chartOpts()); PV.series.applyOptions({ priceFormat: pf() });
+    requestAnimationFrame(() => PV.chart.timeScale().fitContent());  // the tab may have been hidden when it was sized
+    const list = pvTrades(d), key = d.symbol + cur + list.map(t => t.id + t.why).join();
+    if (key !== PV.key) {  // only rebuild the menu (and reset the player) when the trades change
+      PV.key = key;
+      $('pv-trade').replaceChildren(...list.map((t, i) => el('option', { value: i,
+        textContent: `#${t.id} ${t.side} · ${t.open ? 'open · live' : (t.why === 'stop' ? 'stopped' : '24h exit') + ' · ' + usd2(t.pnl)}` })));
+      PV.list = list;
+      pvLoad(d);
+    }
+  }
+
+  function pvLoad(d) {
+    pvPause();
+    const t = PV.list[+$('pv-trade').value || 0];
+    PV.trade = t;
+    if (!t) {
+      $('pv-status').textContent = 'No paper trades yet. The first one appears here as soon as a forecast clears the entry rules.';
+      $('pv-play').disabled = $('pv-restart').disabled = true; return;
+    }
+    $('pv-play').disabled = $('pv-restart').disabled = false;
+    const sign = t.side === 'LONG' ? 1 : -1, r = d.paper.rules;
+    t.stopPx = t.stop ?? t.entry * (1 - sign * r.stop);
+    const end = t.open ? Infinity : t.t_out;
+    const lead = d.candles.filter(c => c[0] <= t.t_in).slice(-12);  // 12h of context before entry
+    PV.bars = d.candles.filter(c => c[0] > t.t_in && c[0] <= end);
+    PV.lead = lead; PV.i = 0;
+    PV.series.setData(lead.map(([time, open, high, low, close]) => ({ time, open, high, low, close })));
+    PV.lines.forEach(l => PV.series.removePriceLine(l));
+    PV.lines = [PV.series.createPriceLine({ price: t.entry, color: css('--gold'), lineWidth: 2, title: 'entry' }),
+                PV.series.createPriceLine({ price: t.stopPx, color: css('--down'), lineStyle: window.LightweightCharts.LineStyle.Dashed, title: 'stop' })];
+    PV.series.applyOptions({ autoscaleInfoProvider: base => {  // keep entry and stop in view
+      const r = base(); if (!r) return r;
+      r.priceRange.minValue = Math.min(r.priceRange.minValue, t.entry, t.stopPx) * 0.998;
+      r.priceRange.maxValue = Math.max(r.priceRange.maxValue, t.entry, t.stopPx) * 1.002;
+      return r;
+    } });
+    PV.chart.timeScale().fitContent();
+    $('pv-play').textContent = '▶ Play';
+    pvShow(t.entry, 'READY · press play', 0);
+  }
+
+  function pvPnl(px) {  // same maths as the paper engine: notional x move, minus costs so far
+    const t = PV.trade, r = data.paper.rules, sign = t.side === 'LONG' ? 1 : -1;
+    return sign * (px - t.entry) / t.entry * t.notional - t.notional * r.fee;
+  }
+
+  function pvShow(px, status, hours) {
+    const t = PV.trade, pnl = t && !t.open && status.startsWith('CLOSED') ? t.pnl : pvPnl(px);
+    $('pv-status').textContent = `#${t.id} ${t.side} · ${status}`;
+    $('pv-pnl').textContent = usd2(pnl); $('pv-pnl').className = 'big ' + (pnl >= 0 ? 'up' : 'down');
+    $('pv-pnlpct').textContent = `${pnl >= 0 ? '+' : ''}${(pnl / t.notional * 100).toFixed(2)}% on a ${usd(t.notional)} position`;
+    $('pv-prog').style.width = Math.min(100, hours / 24 * 100) + '%';
+    $('pv-hours').textContent = `${hours} of 24 hours`;
+    $('pv-rows').replaceChildren(...[['price', usd(px)], ['entry', usd(t.entry)], ['stop', usd(t.stopPx)],
+      ['opened', hhmm(t.t_in)], [t.open ? 'exits by' : 'closed', hhmm(t.open ? t.t_in + 24 * 3600 : t.t_out)]]
+      .map(([k, v]) => el('div', { className: 'row' }, el('span', { className: 'k', textContent: k }), el('span', { textContent: v }))));
+  }
+
+  function pvStep() {
+    const t = PV.trade, c = PV.bars[PV.i];
+    if (!c) {  // ran out of candles
+      pvPause();
+      if (t.open) {
+        PV.live = true;
+        pvShow(livePx != null ? livePx * fx : PV.bars.at(-1)?.[4] ?? t.entry, demoTicks ? 'LIVE · DEMO TICKS (simulated prices)' : livePx ? 'LIVE · ticking on the Binance price' : 'LIVE · waiting for the price feed', PV.i);
+      }
+      else {
+        PV.series.createPriceLine({ price: t.exit, color: css('--text'), lineWidth: 1, title: 'exit' });
+        pvShow(t.exit, `CLOSED · ${t.why === 'stop' ? 'stop hit' : '24h exit'} · after ${usd2(t.fees)} costs`, PV.i);
+      }
+      return;
+    }
+    const [time, open, high, low, close] = c;
+    PV.series.update({ time, open, high, low, close });
+    PV.chart.timeScale().fitContent();
+    PV.i++;
+    pvShow(close, 'REPLAYING', PV.i);
+  }
+
+  function pvPlay() {
+    if (!PV.trade) return;
+    if (PV.i >= PV.bars.length && !PV.trade.open) pvLoad(data);
+    PV.live = false;
+    $('pv-play').textContent = '❚❚ Pause';
+    PV.timer = setInterval(pvStep, +$('pv-speed').value);
+  }
+  function pvPause() { clearInterval(PV.timer); PV.timer = 0; $('pv-play').textContent = '▶ Play'; }
+
+  let demoTicks = false;
+  function onLivePrice(px, demo = false) {  // called on every Binance tick (or every simulated tick in the demo)
+    if (!demo && demoTicks) { clearInterval(demoTicks); demoTicks = false; }  // a real price always wins
+    livePx = px;  // kept in USD; converted for display
+    $('price').textContent = usd(px * fx) + (demo ? ' (demo)' : '');
+    if (PV.live && PV.trade?.open) pvShow(px * fx, demo ? 'LIVE · DEMO TICKS (simulated prices)' : 'LIVE · ticking on the Binance price', PV.i);
+  }
+  // Demo build only: if no real price arrives within 3s, simulate small ticks around the last close so the
+  // open trade can be watched moving. Never runs on real data.
+  function startDemoTicks() {
+    if (!window.KRONOS_DEMO || livePx != null || demoTicks || !raw || raw.symbol !== coin) return;
+    let px = raw.last.close;  // USD
+    demoTicks = setInterval(() => { px *= Math.exp((Math.random() - .5) * 0.0016); onLivePrice(px, true); }, 700);
+  }
+
+  function renderPaper(d) {
+    const p = d.paper, last = d.last.close;
+    if (!p) return;
+    $('eq').textContent = usd2(p.equity);
+    $('ret').textContent = (p.return_pct >= 0 ? '+' : '') + p.return_pct + '%';
+    $('ret').className = p.return_pct >= 0 ? 'up' : 'down';
+    $('ntr').textContent = p.trades;
+    $('wr').textContent = p.win_rate == null ? '–' : `${pct(p.win_rate)} (95% range ${pct(p.win_ci[0])}–${pct(p.win_ci[1])})`;
+    $('pnl').textContent = usd2(p.pnl); $('pnl').className = p.pnl >= 0 ? 'up' : 'down';
+    $('fees').textContent = usd2(p.fees);
+    $('mdd').textContent = p.max_dd_pct + '%';
+    if (d.benchmark) {
+      const gap = p.return_pct - d.benchmark.return_pct;
+      $('vsm').textContent = `${gap >= 0 ? '+' : ''}${gap.toFixed(2)} pts ${gap >= 0 ? 'ahead' : 'behind'}`;
+      $('vsm').className = gap >= 0 ? 'up' : 'down';
+    }
+    $('ptoofew').hidden = !p.too_few;
+
+    eqChart.applyOptions(chartOpts());
+    eqSeries.applyOptions({ lineColor: css('--magenta'), topColor: css('--magenta') + '55', bottomColor: css('--magenta') + '05' });
+    eqSeries.setData(p.equity_curve.map(([time, value]) => ({ time, value })));
+    const bm = d.benchmark;
+    benchSeries.applyOptions({ color: css('--violet') });
+    benchSeries.setData(bm ? bm.equity_curve.map(([time, value]) => ({ time, value })) : []);
+    $('vs').replaceChildren(...[['Kronos', p, 'acc'], ...(bm ? [[bm.name, bm, 'violet']] : [])].map(([name, a, cls]) =>
+      el('tr', {}, el('td', { className: cls, textContent: name }),
+         el('td', { className: a.return_pct >= 0 ? 'up' : 'down', textContent: (a.return_pct >= 0 ? '+' : '') + a.return_pct + '%' }),
+         el('td', { textContent: a.trades }), el('td', { textContent: a.win_rate == null ? '–' : pct(a.win_rate) }),
+         el('td', { textContent: a.max_dd_pct + '%' }), el('td', { textContent: usd2(a.fees) }))));
+    eqChart.timeScale().fitContent();
+
+    const o = p.open;
+    if (o) {
+      const sign = o.side === 'LONG' ? 1 : -1, upnl = sign * (last - o.entry) / o.entry * o.notional - o.fee_in;
+      $('openpos').replaceChildren(
+        el('div', { className: 'big', style: `font-size:28px;color:${o.side === 'LONG' ? css('--up') : css('--down')}`, textContent: `#${o.id} ${o.side}` }),
+        ...[['opened', hhmm(o.t)], ['size', usd2(o.notional)], ['entry', usd(o.entry)], ['stop', usd(o.stop)],
+            ['exits by', hhmm(o.t + 24 * 3600)], ['unrealised', usd2(upnl)]]
+          .map(([k, v]) => el('div', { className: 'row' }, el('span', { className: 'k', textContent: k }),
+                                        el('span', { className: k === 'unrealised' ? (upnl >= 0 ? 'up' : 'down') : '', textContent: v }))));
+    } else {
+      $('openpos').replaceChildren(el('div', { className: 'note', textContent: 'Flat. Waiting for a forecast that clears the entry rules.' }));
+    }
+
+    $('xlog').replaceChildren(...p.log.slice().reverse().map(([t, kind, text]) =>
+      el('li', {}, el('span', { className: 't', textContent: hhmm(t) }), el('span', { className: 'k-' + kind, textContent: kind.toUpperCase() }),
+                   el('span', { textContent: logText(text) }))));
+    $('ntrades').textContent = `last ${p.trade_list.length} of ${p.trades}`;
+    $('trades').replaceChildren(...(p.trade_list.length ? p.trade_list.slice().reverse().map(t =>
+      el('tr', {}, ...[`#${t.id}`, t.side, hhmm(t.t_in), hhmm(t.t_out), usd(t.entry), usd(t.exit), usd(t.notional), t.why, usd2(t.fees)]
+        .map(v => el('td', { textContent: v })), el('td', { className: t.pnl >= 0 ? 'up' : 'down', textContent: usd2(t.pnl) })))
+      : [el('tr', {}, el('td', { colSpan: 10, className: 'note', textContent: 'No closed trades yet.' }))]));
+    const r = p.rules;
+    $('rules').textContent = `Rules: enter when the 24h median moves ≥ ${r.edge * 100}% and ≥ ${r.agree * 100}% of paths agree. ` +
+      `Size so a ${r.stop * 100}% stop loses ${r.risk * 100}% of equity. Exit at the stop or after 24h. ` +
+      `Costs: ${r.fee * 100}% fee + ${r.slip * 100}% slippage on each side.`;
+  }
+
+  // ---------- pipeline tab ----------
+  let W = 640;
+  function svg(h, body, label) {
+    return `<svg viewBox="0 0 ${W} ${h}" width="100%" role="img" aria-label="${svgEsc(label)}">${body}</svg>`;
+  }
+  const widthOf = id => Math.max(260, $(id).clientWidth || 640);
+
+  function renderPipeline(d) {
+    const pl = d.pipeline;
+    if (!pl) return;
+    const max = Math.max(...pl.stages.map(s => s.s || 0), 0.001);
+    $('stages').replaceChildren(...pl.stages.map((s, i) => el('div', { className: 'stage' },
+      el('span', { className: 'note', textContent: String(i + 1).padStart(2, '0') }),
+      el('span', { textContent: s.name }),
+      el('span', { className: 'bar' }, el('i', { style: `width:${Math.max(4, (s.s || 0) / max * 100)}%` })),
+      el('span', { className: 'up', style: 'text-align:right', textContent: s.s == null ? 'DONE' : s.s.toFixed(2) + 's' }))));
+    const lastLog = (d.paper?.log || []).slice(-1)[0];
+    $('decision').textContent = lastLog ? `SIGNAL · ${hhmm(lastLog[0])} · ${logText(lastLog[2])}` : 'SIGNAL · no paper decision yet';
+    renderConsole(d);
+
+    const ok = pl.runs.filter(r => r[1]).length;
+    $('runcount').textContent = `${ok} of ${pl.runs.length} ran`;
+    $('runs').replaceChildren(...pl.runs.map(([t, good]) => el('span', { title: hhmm(t) + (good ? ' · ok' : ' · missed'),
+      style: `background:${good ? css('--up') : css('--down')};opacity:${good ? .85 : 1}` })));
+    $('runs').setAttribute('aria-label', `${ok} of ${pl.runs.length} hourly runs produced a forecast`);
+
+    // histogram of sampled 24h returns
+    W = widthOf('hist');
+    const { edges, counts } = pl.returns_hist, H = 170, top = Math.max(...counts, 1), bw = (W - 40) / counts.length;
+    const x = v => 20 + (v - edges[0]) / (edges[edges.length - 1] - edges[0]) * (W - 40);
+    let b = counts.map((c, i) => {
+      const h = c / top * (H - 50), mid = (edges[i] + edges[i + 1]) / 2;
+      return `<rect x="${20 + i * bw + 1}" y="${H - 30 - h}" width="${bw - 2}" height="${h}" rx="2" fill="${mid >= 0 ? css('--up') : css('--down')}" opacity=".8"><title>${edges[i].toFixed(1)}% to ${edges[i + 1].toFixed(1)}%: ${c} paths</title></rect>`;
+    }).join('');
+    b += `<line x1="${x(0)}" x2="${x(0)}" y1="10" y2="${H - 30}" stroke="${css('--gold')}" stroke-dasharray="4 4"/>`;
+    b += `<line x1="20" x2="${W - 20}" y1="${H - 30}" y2="${H - 30}" stroke="${css('--border')}"/>`;
+    [edges[0], 0, edges[edges.length - 1]].forEach(v => {
+      b += `<text x="${x(v)}" y="${H - 12}" text-anchor="middle" font-size="11" fill="${css('--muted')}">${v > 0 ? '+' : ''}${v.toFixed(0)}%</text>`;
+    });
+    $('hist').innerHTML = svg(H, b, 'Histogram of the 24 hour return of each sampled path');
+
+    // Pareto of skip reasons
+    W = widthOf('pareto');
+    const sk = Object.entries(pl.skips).filter(([k]) => k !== 'position open'), tot = sk.reduce((a, [, v]) => a + v, 0) || 1, PH = 200;
+    let pb = '', cum = 0, pts = [];
+    const sw = (W - 40) / Math.max(sk.length, 1), smax = Math.max(...sk.map(([, v]) => v), 1);
+    sk.forEach(([k, v], i) => {
+      const h = v / smax * (PH - 70), x0 = 20 + i * sw;
+      pb += `<rect x="${x0 + 8}" y="${PH - 40 - h}" width="${sw - 16}" height="${h}" rx="3" fill="${i === 0 ? css('--amber') : css('--violet')}" opacity=".85"><title>${svgEsc(k)}: ${v}</title></rect>`;
+      pb += `<text x="${x0 + sw / 2}" y="${PH - 40 - h - 6}" text-anchor="middle" font-size="12" fill="${css('--text')}">${v}</text>`;
+      pb += `<text x="${x0 + sw / 2}" y="${PH - 22}" text-anchor="middle" font-size="11" fill="${css('--muted')}">${svgEsc(k.length > sw / 7 ? k.slice(0, Math.floor(sw / 7) - 1) + '…' : k)}</text>`;
+      cum += v; pts.push(`${x0 + sw / 2},${PH - 40 - cum / tot * (PH - 70)}`);
+    });
+    if (pts.length) pb += `<polyline points="${pts.join(' ')}" fill="none" stroke="${css('--text')}" stroke-width="1.5"/>`;
+    pb += `<line x1="20" x2="${W - 20}" y1="${PH - 40}" y2="${PH - 40}" stroke="${css('--border')}"/>`;
+    $('pareto').innerHTML = (sk.length ? svg(PH, pb, 'Paper account skip reasons, largest first, with the cumulative share')
+                                       : '<div class="note">No skips yet.</div>') +
+      `<div class="note">Plus ${pl.skips['position open'] || 0} hours already in a trade.</div>`;
+
+    // drift dumbbell: last 7 days vs all time
+    const a = pl.drift.all, wk = pl.drift.week;
+    const cmax = Math.ceil(Math.max(a.crps, wk.crps || 0) * 1.5);
+    const rows = [['band coverage', a.coverage, wk.coverage, v => pct(v), 0.8, 1], ['direction right', a.direction, wk.direction, v => pct(v), 0.5, 1],
+                  ['CRPS, lower is better', a.crps, wk.crps, v => v.toFixed(2), null, cmax]];
+    if (!a.n) { $('drift').innerHTML = '<div class="note">Needs scored forecasts first.</div>'; return; }
+    W = widthOf('drift');
+    const narrow = W < 520, lx = narrow ? 0 : 200, DH = 30 + rows.length * (narrow ? 52 : 36);
+    let xs;
+    let db = '';
+    rows.forEach(([name, all, week, fmt, ref, dom], i) => {
+      const y = narrow ? 50 + i * 52 : 30 + i * 36;
+      xs = v => lx + v / dom * (W - lx - 130);
+      db += `<text x="0" y="${narrow ? y - 14 : y + 4}" font-size="12" fill="${css('--muted')}">${name}</text>`;
+      db += `<line x1="${xs(0)}" x2="${xs(dom)}" y1="${y}" y2="${y}" stroke="${css('--grid')}"/>`;
+      if (ref != null) db += `<line x1="${xs(ref)}" x2="${xs(ref)}" y1="${y - 9}" y2="${y + 9}" stroke="${css('--gold')}" stroke-dasharray="2 2"><title>target ${fmt(ref)}</title></line>`;
+      if (week != null) db += `<line x1="${xs(all)}" x2="${xs(week)}" y1="${y}" y2="${y}" stroke="${css('--dim')}" stroke-width="2"/>`;
+      db += `<circle cx="${xs(all)}" cy="${y}" r="6" fill="none" stroke="${css('--text')}" stroke-width="2"><title>all time ${fmt(all)}</title></circle>`;
+      if (week != null) db += `<circle cx="${xs(week)}" cy="${y}" r="6" fill="${css('--violet')}"><title>last 7 days ${fmt(week)}</title></circle>`;
+      db += `<text x="${W}" y="${y + 4}" text-anchor="end" font-size="12" fill="${css('--text')}">${fmt(all)} → ${week != null ? fmt(week) : '–'}</text>`;
+    });
+    db += `<text x="${lx}" y="12" font-size="11" fill="${css('--muted')}">○ all time   ● last 7 days   ┆ target</text>`;
+    $('drift').innerHTML = svg(DH, db, 'Coverage, direction and CRPS: last seven days against all time');
+  }
+
+
+  // ---------- console tab: the "AI Trading Bot" look, every number from the forecast JSON ----------
+  function renderConsole(d) {
+    const s = d.score || {}, f = d.forecast, L = d.lean, pl = d.pipeline, last = d.last.close;
+    const n = f.p50.length - 1, ok = pl.runs.filter(r => r[1]).length;
+    $('c-top').textContent = `graph candles ${d.candles.length} | nodes ${d.candles.length + f.paths.length * f.t.length} | scored ${s.n || 0} | runs ${ok}/${pl.runs.length}`;
+    $('c-iter').textContent = `${s.n || 0} scored · ${s.independent || 0} independent windows`;
+    $('c-cov').textContent = s.n ? `coverage/target ${pct(s.coverage_cal ?? s.coverage)} · 80% (calibrated)` : 'coverage/target – · 80%';
+    $('c-status1').textContent = `${d.model.name} sampler + ewma baseline | horizon ${f.t.length}h | paths ${L.n} | alert ${d.alert ? 'band breach' : 'none'}`;
+    $('c-status2').textContent = `context ${d.model.context} | strands ${f.paths.length} × ${f.t.length} | paper only`;
+
+    const chips = [[`${d.source}.klines`, 'ok'], ['kraken.fallback', d.source === 'kraken' ? 'ok' : ''],
+      ['kronos.tokenize', 'kr'], [`kronos.sample ×${L.n}`, 'kr'], ['quantile.p10_p50_p90', 'kr'], [`conformal.band ×${(d.calibration?.k ?? 1).toFixed(2)}`, d.calibration?.active ? 'ok' : ''], ['ewma.baseline', 'bl'],
+      ['score.coverage_crps', 'ok'], ['paper.step', 'ok'], ['ntfy.alert', d.alert ? 'ok' : ''], ['json.commit', 'ok']];
+    $('c-chips').replaceChildren(...chips.map(([t, c]) => el('span', { className: c, textContent: t })));
+
+    const big = (...v) => Math.max(...v.map(x => x || 0)) * 1.2;
+    const rows = [['coverage (target 80%)', [s.coverage, s.coverage_cal, s.coverage_ewma], 1, pct],
+                  ['band width', [s.width_pct, s.width_pct_cal, s.width_pct_ewma], big(s.width_pct, s.width_pct_cal, s.width_pct_ewma), v => v.toFixed(1) + '%'],
+                  ['crps (lower is better)', [s.crps, s.crps_cal, s.crps_ewma], big(s.crps, s.crps_cal, s.crps_ewma), v => v.toFixed(2)]];
+    const who = [['kronos', 'amber', 'kr'], ['calib.', 'teal', 'ca'], ['ewma', 'violet', 'bl']];
+    $('pairs').replaceChildren(...(s.n ? rows.flatMap(([name, vals, max, fmt]) => [el('div', { className: 'pmetric', textContent: name }),
+      ...vals.map((v, i) => v == null ? null : el('div', { className: 'pair' }, el('span', { className: who[i][1], textContent: who[i][0] }),
+         el('span', { className: 'bar' }, el('i', { className: who[i][2], style: `width:${v / max * 100}%` })),
+         el('span', { style: 'text-align:right', textContent: fmt(v) }))).filter(Boolean)])
+      : [el('div', { className: 'note', textContent: 'Needs scored forecasts first.' })]));
+
+    const tele = [['last close', usd(last)], ['median 24h', usd(f.p50[n])], ['p10 – p90', `${usd(f.p10[n])} – ${usd(f.p90[n])}`],
+      ['spread', ((f.p90[n] - f.p10[n]) / last * 100).toFixed(1) + '%'], ['paths up / down', `${L.up} / ${L.down}`],
+      ['scored / independent', `${s.n || 0} / ${s.independent || 0}`], ['paper equity', usd2(d.paper?.equity)], ['cycle / fps', '–']];
+    $('tele').replaceChildren(...tele.map(([k, v]) => el('div', { className: 'row' }, el('span', { className: 'k', textContent: k }),
+      el('span', { textContent: v, id: k === 'cycle / fps' ? 'fps' : '' }))));
+
+    const now = d.generated_at;
+    $('queue').replaceChildren(...(d.paper?.log || []).slice(-4).reverse().map(([t, kind, text]) => el('div', {},
+      el('b', { textContent: '>' }), el('span', { textContent: `${kind}.${text.split(' · ')[0].toLowerCase().replace(/^skip$/, 'skip')}` }),
+      el('span', { className: 'note', textContent: Math.max(0, Math.round((now - t) / 3600)) + 'h' }))));
+    const ok2 = ok === pl.runs.length;
+    $('queue').append(el('div', {}, el('b', { textContent: ' ' }), el('span', { className: ok2 ? 'teal' : 'down', textContent: 'system buffer' }),
+      el('span', { className: ok2 ? 'teal' : 'down', textContent: `${(ok / pl.runs.length * 100).toFixed(1)}% verified` })));
+
+    // price stream: last 120 closes + forecast band and median
+    W = widthOf('stream');
+    const H = 110, cl = d.candles.map(c => c[4]), all = [...cl, ...f.p10, ...f.p90, ...(f.p10_cal || []), ...(f.p90_cal || [])];
+    const lo = Math.min(...all), hi = Math.max(...all), N = cl.length + f.t.length;
+    const X = i => 4 + i / (N - 1) * (W - 8), Y = v => 8 + (1 - (v - lo) / (hi - lo)) * (H - 16);
+    const p90s = f.p90_cal || f.p90, p10s = f.p10_cal || f.p10;
+    const band = [...p90s.map((v, i) => `${X(cl.length + i)},${Y(v)}`), ...p10s.map((v, i) => `${X(cl.length + i)},${Y(v)}`).reverse()];
+    $('stream').innerHTML = svg(H,
+      `<polygon points="${X(cl.length - 1)},${Y(last)} ${band.join(' ')}" fill="${css('--amber')}" opacity=".12"/>` +
+      `<polyline points="${cl.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}" fill="none" stroke="${css('--teal')}" stroke-width="1.5"/>` +
+      `<polyline points="${X(cl.length - 1)},${Y(last)} ${f.p50.map((v, i) => `${X(cl.length + i)},${Y(v)}`).join(' ')}" fill="none" stroke="${css('--gold')}" stroke-width="2" stroke-dasharray="5 4"/>` +
+      `<line x1="${X(cl.length - 1)}" x2="${X(cl.length - 1)}" y1="0" y2="${H}" stroke="${css('--dim')}" stroke-dasharray="2 3"/>`,
+      'Last 120 hourly closes with the next 24 hours of forecast median and p10 to p90 band');
+    $('streamlast').textContent = usd(last);
+
+    sphereData(d);
+  }
+
+  // ---------- the sphere: price history wrapped as a chain, forecast paths fanning out of "now" ----------
+  const SPH = { pts: [], edges: [], arcs: [], chain: [], strands: [], med: [], yaw: 0, pitch: .38, zoom: 1, drag: null, touches: new Map(), hold: 0, raf: 0, last: 0, frames: 0, fpsT: 0, chip: 0 };
+  const fib = n => Array.from({ length: n }, (_, i) => {
+    const y = 1 - (i + .5) / n * 2, r = Math.sqrt(1 - y * y), th = i * 2.399963;
+    return [Math.cos(th) * r, y, Math.sin(th) * r];
+  });
+  const onSphere = (lon, lat) => [Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)];
+
+  function sphereData(d) {
+    if (!SPH.pts.length) {  // the "connectome" shell: fixed points, each tied to its 2 nearest neighbours
+      SPH.pts = fib(640);
+      SPH.pts.forEach((a, i) => {
+        const near = SPH.pts.map((b, j) => [j, (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2]).filter(([j]) => j !== i)
+          .sort((p, q) => p[1] - q[1]).slice(0, 3);
+        near.forEach(([j]) => j > i && SPH.edges.push([i, j]));
+      });
+      let seed = 7;  // fixed seed: the texture looks the same on every load
+      const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      for (let k = 0; k < 220; k++) {  // short great-circle strands lying on the surface
+        const lon = rnd() * 6.283, lat = Math.asin(rnd() * 2 - 1), dir = rnd() * 6.283, len = .4 + rnd() * 1.2;
+        SPH.arcs.push(Array.from({ length: 14 }, (_, i) => {
+          const t = i / 13 * len, la = lat + Math.sin(dir) * t, lo = lon + Math.cos(dir) * t / Math.max(.3, Math.cos(la));
+          return onSphere(lo, Math.max(-1.5, Math.min(1.5, la)));
+        }));
+      }
+    }
+    const cl = d.candles.map(c => c[4]), f = d.forecast, all = [...cl, ...f.p10, ...f.p90, ...f.paths.flat()];
+    const lo = Math.min(...all), hi = Math.max(...all);
+    const lat = v => ((v - lo) / (hi - lo) - .5) * 2 * 1.15;         // price -> latitude, up = north (±66°)
+    const dl = 2 * Math.PI * 1.6 / (cl.length + f.t.length);          // the chain wraps ~1.6 times around
+    SPH.chain = cl.map((v, i) => onSphere(i * dl, lat(v)));
+    const lon0 = (cl.length - 1) * dl, last = cl[cl.length - 1];
+    SPH.strands = f.paths.map(p => ({ up: p[p.length - 1] > last, pts: [SPH.chain.at(-1), ...p.map((v, i) => onSphere(lon0 + (i + 1) * dl, lat(v)))] }));
+    SPH.med = [SPH.chain.at(-1), ...f.p50.map((v, i) => onSphere(lon0 + (i + 1) * dl, lat(v)))];
+    sphereLoop();
+  }
+
+  function sphereLoop() {
+    if (SPH.raf) return;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const tick = t => {
+      SPH.raf = 0;
+      if (document.body.dataset.tab !== 'pipeline' || document.hidden) return;  // stops when the console is not on screen
+      if (t - SPH.last >= 33) {  // ~30 fps is plenty and kind to phones
+        SPH.last = t; drawSphere(); SPH.frames++;
+        if (!SPH.drag && t > SPH.hold) {  // after a manual turn, wait 2.5s before the camera moves again
+          if (SPH.goal) { if (aim(SPH.goal, .12) < .002) SPH.goal = null; }
+          else if (SPH.follow) aim(followPoint(t), .05);
+          else if (!reduce) SPH.yaw += 0.0035;
+        }
+        if (t - SPH.fpsT > 1000) {
+          const fps = SPH.frames * 1000 / (t - SPH.fpsT); SPH.frames = 0; SPH.fpsT = t;
+          if ($('fps')) $('fps').textContent = `#${Math.round(SPH.yaw / 0.0035)} | ${fps.toFixed(1)}`;
+          if (!reduce) {  // walk the highlight along the pipeline chips
+            const c = $('c-chips').children; [...c].forEach((e, i) => e.classList.toggle('on', i === SPH.chip % c.length)); SPH.chip++;
+          }
+        }
+        spinText();
+      }
+      if (!reduce) SPH.raf = requestAnimationFrame(tick);
+    };
+    SPH.raf = requestAnimationFrame(tick);
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && data) sphereLoop(); });
+
+  // ---------- manual rotation: drag (mouse or sideways swipe), arrow keys, double-click / 0 to reset ----------
+  const angDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
+  function aim(v, rate) {  // ease the camera toward point v (a vector on the sphere); returns the remaining distance
+    const gy = Math.atan2(v[0], v[2]), gp = Math.max(-1.3, Math.min(1.3, Math.atan2(v[1], Math.hypot(v[0], v[2]))));
+    SPH.yaw += angDiff(SPH.yaw, gy) * rate; SPH.pitch += (gp - SPH.pitch) * rate;
+    return Math.abs(angDiff(SPH.yaw, gy)) + Math.abs(gp - SPH.pitch);
+  }
+  function followPoint(t) {  // glide along the trade's median path: now -> +24h -> now, every 12s
+    const m = SPH.med, u = (1 - Math.cos(t / 12000 * 2 * Math.PI)) / 2 * (m.length - 1), i = Math.min(m.length - 2, Math.floor(u)), f = u - i;
+    return m[i].map((a, k) => a + (m[i + 1][k] - a) * f);
+  }
+  const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tradeLabel = () => { const o = data?.paper?.open; return o ? `#${o.id} ${o.side}` : 'NOW'; };
+  const spinText = () => {
+    const deg = ((SPH.yaw * 180 / Math.PI) % 360 + 360) % 360;
+    $('spin').textContent = `SPIN ${deg.toFixed(1).padStart(5, '0')}° · TILT ${Math.round(SPH.pitch * 180 / Math.PI)}° · ZOOM ${SPH.zoom.toFixed(1)}×\n${SPH.drag || performance.now() < SPH.hold ? 'MANUAL' : SPH.goal ? 'RESETTING' : SPH.follow ? 'FOLLOW · ' + tradeLabel() : 'AXIS LOCK'}`;
+  };
+  const turn = (dyaw, dpitch) => {
+    SPH.yaw += dyaw;
+    SPH.pitch = Math.max(-1.3, Math.min(1.3, SPH.pitch + dpitch));
+    SPH.hold = performance.now() + 2500;
+    drawSphere(); spinText();  // draw now, so it also works with reduced motion (no animation loop)
+  };
+  const cv = $('sphere');
+  const setZoom = z => { SPH.zoom = Math.max(.6, Math.min(4, z)); drawSphere(); spinText(); };
+  const pinchGap = () => { const [a, b] = [...SPH.touches.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  cv.addEventListener('pointerdown', e => {
+    SPH.touches.set(e.pointerId, { x: e.clientX, y: e.clientY }); SPH.goal = null; cv.setPointerCapture(e.pointerId);
+    SPH.drag = SPH.touches.size === 1 ? { x: e.clientX, y: e.clientY } : null;
+    SPH.pinch = SPH.touches.size === 2 ? { gap: pinchGap(), zoom: SPH.zoom } : null;
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!SPH.touches.has(e.pointerId)) return;
+    SPH.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (SPH.pinch) { SPH.hold = performance.now() + 2500; setZoom(SPH.pinch.zoom * pinchGap() / SPH.pinch.gap); return; }
+    if (!SPH.drag) return;
+    turn(-(e.clientX - SPH.drag.x) * 0.008, (e.clientY - SPH.drag.y) * 0.008);  // yaw is negated so the front face follows the finger
+    SPH.drag = { x: e.clientX, y: e.clientY };
+  });
+  ['pointerup', 'pointercancel'].forEach(ev => cv.addEventListener(ev, e => {
+    SPH.touches.delete(e.pointerId); SPH.pinch = null;
+    SPH.drag = null; SPH.hold = performance.now() + 2500;
+  }));
+  cv.addEventListener('wheel', e => { e.preventDefault(); setZoom(SPH.zoom * Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+  $('szin').onclick = () => setZoom(SPH.zoom * 1.25);
+  $('szout').onclick = () => setZoom(SPH.zoom / 1.25);
+  function resetView() {
+    if (!SPH.chain.length) return;
+    SPH.hold = 0; SPH.zoom = 1;
+    if (reduceMotion()) { aim(SPH.chain.at(-1), 1); drawSphere(); spinText(); }  // jump instead of animating
+    else { SPH.goal = SPH.chain.at(-1); sphereLoop(); }
+  }
+  cv.addEventListener('dblclick', resetView);
+  $('sreset').onclick = resetView;
+  $('sfollow').onclick = () => {
+    SPH.follow = !SPH.follow; SPH.goal = null; SPH.hold = 0;
+    $('sfollow').setAttribute('aria-pressed', SPH.follow);
+    if (SPH.follow && reduceMotion() && SPH.med.length) { aim(SPH.med.at(-1), 1); drawSphere(); }  // static: show the 24h target
+    spinText(); sphereLoop();
+  };
+  cv.addEventListener('keydown', e => {
+    const k = { ArrowLeft: [.1, 0], ArrowRight: [-.1, 0], ArrowUp: [0, -.1], ArrowDown: [0, .1] }[e.key];
+    if (k) { e.preventDefault(); turn(...k); }
+    if (e.key === '0') resetView();
+    if (e.key === '+' || e.key === '=') setZoom(SPH.zoom * 1.25);
+    if (e.key === '-' || e.key === '_') setZoom(SPH.zoom / 1.25);
+  });
+
+  const rgb = n => {  // a CSS colour token -> "r,g,b", for alpha-blended canvas strokes
+    const c = css(n), h = c.startsWith('#') ? c.slice(1) : '';
+    if (h.length >= 6) return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)).join(',');
+    const m = c.match(/\d+(\.\d+)?/g); return m ? m.slice(0, 3).join(',') : '128,128,128';
+  };
+  function drawSphere() {
+    const cv = $('sphere'), dpr = Math.min(1.5, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
+    if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    const R = Math.min(w, h) * .42 * SPH.zoom, cx = w * .52, cy = h * .52, cy0 = Math.cos(SPH.yaw), sy0 = Math.sin(SPH.yaw), pc = Math.cos(SPH.pitch), ps = Math.sin(SPH.pitch);
+    const P = ([x, y, z]) => {  // rotate (yaw, then a fixed tilt) and project
+      const x1 = x * cy0 - z * sy0, z1 = x * sy0 + z * cy0, y1 = y * pc - z1 * ps, z2 = y * ps + z1 * pc;
+      return [cx + x1 * R, cy - y1 * R, z2];
+    };
+    const depth = z => .18 + .82 * (z + 1) / 2;
+    const C = { shell: rgb('--shell'), chain: rgb('--teal'), up: rgb('--up'), down: rgb('--down'), gold: rgb('--gold') };
+    g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+    const pts = SPH.pts.map(P);
+    g.lineWidth = .6;
+    SPH.edges.forEach(([a, b]) => {
+      const p = pts[a], q = pts[b];
+      g.strokeStyle = `rgba(${C.shell},${.10 * depth((p[2] + q[2]) / 2)})`;
+      g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke();
+    });
+    pts.forEach(p => { g.fillStyle = `rgba(${C.shell},${.35 * depth(p[2])})`; g.fillRect(p[0] - .8, p[1] - .8, 1.6, 1.6); });
+    const curve = (arr, color, alpha, width) => {
+      const q = arr.map(P); g.lineWidth = width;
+      for (let i = 1; i < q.length; i++) {
+        g.strokeStyle = color.replace('A', (alpha * depth((q[i][2] + q[i - 1][2]) / 2)).toFixed(3));
+        g.beginPath(); g.moveTo(q[i - 1][0], q[i - 1][1]); g.lineTo(q[i][0], q[i][1]); g.stroke();
+      }
+      return q;
+    };
+    SPH.arcs.forEach((a, i) => curve(a, `rgba(${i % 5 ? C.shell : C.gold},A)`, .16, .7));
+    const chain = curve(SPH.chain, `rgba(${C.chain},A)`, .9, 1.6);
+    chain.forEach((p, i) => { if (i % 6 === 0) { g.fillStyle = `rgba(${C.chain},${.8 * depth(p[2])})`; g.beginPath(); g.arc(p[0], p[1], 1.8, 0, 7); g.fill(); } });
+    SPH.strands.forEach(s => curve(s.pts, `rgba(${s.up ? C.up : C.down},A)`, .45, 1));
+    curve(SPH.med, `rgba(${C.gold},A)`, 1, 2.4);
+    const now = P(SPH.chain.at(-1));  // the "now" node, with a reticle
+    g.globalCompositeOperation = 'source-over';
+    g.strokeStyle = `rgba(${C.gold},.9)`; g.lineWidth = 1.2;
+    g.beginPath(); g.arc(now[0], now[1], 9, 0, 7); g.stroke();
+    g.beginPath(); g.moveTo(now[0] - 15, now[1]); g.lineTo(now[0] - 4, now[1]); g.moveTo(now[0] + 4, now[1]); g.lineTo(now[0] + 15, now[1]);
+    g.moveTo(now[0], now[1] - 15); g.lineTo(now[0], now[1] - 4); g.moveTo(now[0], now[1] + 4); g.lineTo(now[0], now[1] + 15); g.stroke();
+    g.fillStyle = `rgba(${C.gold},.95)`; g.font = '600 11px ' + css('--label-font'); g.fillText('NOW', now[0] + 14, now[1] - 10);
+  }
+
+  function convert(d) {  // every money field x the USD->ZAR rate; percentages and counts are unchanged
+    if (cur === 'USD') return d;
+    const c = structuredClone(d), m = v => v == null ? v : v * fx;
+    c.candles = c.candles.map(([t, ...ohlc]) => [t, ...ohlc.map(m)]);
+    c.last.close = m(c.last.close);
+    ['p10', 'p50', 'p90', 'p10_cal', 'p90_cal'].forEach(k => c.forecast[k] && (c.forecast[k] = c.forecast[k].map(m)));
+    c.forecast.paths = c.forecast.paths.map(p => p.map(m));
+    c.ewma_band = c.ewma_band.map(m);
+    c.recent.forEach(r => ['last', 'real', 'p10', 'p50', 'p90'].forEach(k => r[k] = m(r[k])));
+    [c.paper, c.benchmark].filter(Boolean).forEach(a => {
+      ['start', 'equity', 'pnl', 'fees'].forEach(k => a[k] = m(a[k]));
+      a.equity_curve = a.equity_curve.map(([t, v]) => [t, m(v)]);
+      if (a.open) ['entry', 'stop', 'notional', 'fee_in'].forEach(k => a.open[k] = m(a.open[k]));
+      (a.trade_list || []).forEach(t => ['entry', 'exit', 'notional', 'fees', 'pnl'].forEach(k => t[k] = m(t[k])));
+    });
+    return c;
+  }
+
+  function render(d) {
+    data = d;
+    $('sub').textContent = `${d.symbol} · ${d.interval} · ${d.source}`;
+    $('pstart').textContent = 'starts at ' + usd2(d.paper.start);
+    $('xlognote').textContent = cur === 'USD' ? 'newest first' : 'newest first · amounts in USD';
+    $('fxnote').textContent = cur === 'ZAR' ? `R${fx.toFixed(2)} = $1 · ${raw.fx.source} · ${raw.fx.date}` : '';
+    $('fake').hidden = !/FAKE|stand-in/i.test(d.model.name);
+    $('fake').textContent = /stand-in/i.test(d.model.name) ? 'Stand-in model' : 'Fake data';
+    $('stale').hidden = Date.now() / 1000 - d.generated_at < STALE_S;
+    renderForecast(d); renderPaper(d); pvSetup(d); renderPipeline(d);
+    const m = d.model;
+    document.querySelectorAll('[data-coin]').forEach(b => b.setAttribute('aria-pressed', b.dataset.coin === coin));
+    document.querySelectorAll('[data-cur]').forEach(b => b.setAttribute('aria-pressed', b.dataset.cur === cur));
+    $('model').textContent = `${m.name} · ${m.params} params · context ${m.context} · ${m.samples} samples · top_p ${m.top_p}` + (m.seconds ? ` · ${m.seconds}s` : '');
+  }
+
+  function show_(d) {  // pick the rate, convert, draw
+    raw = d;
+    fx = cur === 'ZAR' && d.fx?.ZAR ? d.fx.ZAR : 1;
+    if (cur === 'ZAR' && fx === 1) { cur = 'USD'; }  // no rate in the file: stay honest and show dollars
+    $('empty').hidden = true; $('main').hidden = false;
+    if (!chart) setupCharts();
+    render(convert(d));
+  }
+
+  async function load() {
+    const want = coin;
+    try {
+      let d, demo = window.KRONOS_DEMO;  // set only by the self-contained demo build
+      if (demo) {
+        d = demo.schema ? (demo.symbol === want ? demo : null) : demo[want];
+        if (!d) throw new Error(`the job has not produced a ${want.slice(0, -4)} forecast yet`);
+      } else {
+        const r = await fetch(DATA_URL.replace('{SYMBOL}', want) + '?t=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) throw new Error(r.status === 404 ? `the job has not produced a ${want.slice(0, -4)} forecast yet` : 'HTTP ' + r.status);
+        d = await r.json();
+      }
+      if (d.schema !== 'fumo.kronos.v1') throw new Error('unexpected schema ' + d.schema);
+      if (want === coin) show_(d);
+    } catch (e) {
+      if (want !== coin) return;
+      if (raw && raw.symbol === want) { $('stale').hidden = false; return; }  // a refresh failed: keep the last good data, flagged
+      $('main').hidden = true; $('empty').hidden = false;
+      $('empty').textContent = `No ${want.slice(0, -4)} data: ${e.message}.`;
+      document.querySelectorAll('[data-coin]').forEach(b => b.setAttribute('aria-pressed', b.dataset.coin === coin));
+    }
+  }
+
+  document.querySelectorAll('[data-coin]').forEach(b => b.onclick = () => {
+    if (b.dataset.coin === coin) return;
+    coin = b.dataset.coin; savePref('coin', coin);
+    livePx = null; if (demoTicks) { clearInterval(demoTicks); demoTicks = false; }
+    $('price').textContent = '–';
+    load(); live(); setTimeout(startDemoTicks, 3000);
+  });
+  document.querySelectorAll('[data-cur]').forEach(b => b.onclick = () => {
+    if (b.dataset.cur === cur) return;
+    cur = b.dataset.cur; savePref('cur', cur);
+    if (raw) show_(raw);
+    if (livePx != null) $('price').textContent = usd(livePx * fx);
+  });
+
+  let ws;
+  function live() {  // one socket, for the selected coin; switching coins replaces it
+    try { ws?.close(); } catch {}
+    let me;
+    try { me = ws = new WebSocket(`wss://data-stream.binance.vision/ws/${coin.toLowerCase()}@miniTicker`); } catch { return; }
+    me.onopen = () => me === ws && $('wsdot').classList.add('on');
+    me.onmessage = e => { if (me !== ws) return; const c = JSON.parse(e.data).c; if (c) onLivePrice(+c); };
+    me.onclose = () => { if (me !== ws) return; $('wsdot').classList.remove('on'); setTimeout(() => me === ws && live(), 10000); };
+  }
+
+  if (!window.LightweightCharts) { $('empty').hidden = false; $('empty').textContent = 'Chart library failed to load.'; return; }
+  load(); setInterval(load, REFRESH_MS); live(); setTimeout(startDemoTicks, 3000);
+})();
+</script>
+<script>document.getElementById('kick').textContent = new Date().toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'});</script>
+</body>
+</html>

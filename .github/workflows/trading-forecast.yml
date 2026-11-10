@@ -1,0 +1,60 @@
+# Hourly Kronos forecast for FUMO's trading page. Paper only: no exchange keys, nothing trades.
+name: Trading forecast
+on:
+  schedule:
+    - cron: "7 * * * *"   # 7 past each hour: the 1h candle has closed and the :00 rush is over
+  workflow_dispatch: {}
+  push:                   # a change to the job runs it straight away
+    branches: [main]
+    paths: ['trading/forecast.py', 'trading/model/**', 'trading/requirements.txt', '.github/workflows/trading-forecast.yml']
+permissions:
+  contents: write
+concurrency:
+  group: trading-forecast
+  cancel-in-progress: false
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: trading/requirements.txt
+      - name: Cache Kronos weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: kronos-hf-${{ hashFiles('trading/forecast.py') }}
+          restore-keys: kronos-hf-
+      - name: Install
+        run: |
+          pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -r trading/requirements.txt
+      - name: Restore last run's data
+        run: |
+          if git fetch -q --depth=1 origin trading-data 2>/dev/null; then
+            git archive FETCH_HEAD | tar -x -C trading/data
+          else
+            echo "First run: no data yet."
+          fi
+      - name: Self-check
+        run: python trading/test_forecast.py
+      - name: Forecast
+        run: python trading/forecast.py
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      - name: Publish data to the trading-data branch
+        if: success() || failure()   # one coin failing still saves the others
+        run: |
+          cd trading/data
+          ls */forecast.json >/dev/null 2>&1 || { echo "Nothing to publish."; exit 0; }
+          git init -q -b trading-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Forecast $(date -u +%Y-%m-%dT%H:%MZ)"
+          # One commit, replaced each run: FUMO's main branch and Pages site are left alone.
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" trading-data
