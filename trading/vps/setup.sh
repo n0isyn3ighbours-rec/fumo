@@ -3,7 +3,7 @@
 # Run once:  curl -fsSL <your FUMO site>/trading/vps/setup.sh | bash
 # Paper only: no exchange keys anywhere. Re-running it updates the code and keeps your key.
 set -euo pipefail
-SITE="${FUMO_SITE:-__FUMO_SITE__}"
+SITE="${FUMO_SITE:-https://fumo-hq.netlify.app}"
 DIR="$HOME/fumo-trading"
 mkdir -p "$DIR/model" "$DIR/data"
 cd "$DIR"
