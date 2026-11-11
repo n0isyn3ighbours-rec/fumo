@@ -436,10 +436,33 @@ html[data-skin="fumo"] .hdr-kick { display: block; color: var(--muted); font-siz
 
 <script>
 (() => {
-  // On GitHub Pages the job's files live on this repo's 'trading-data' branch (replaced each run, so the repo never grows).
-  // ponytail: assumes a project site (<you>.github.io/<repo>/); a <you>.github.io user site would need the repo name here.
-  const GH = location.hostname.endsWith('.github.io') ? `https://raw.githubusercontent.com/${location.hostname.split('.')[0]}/${location.pathname.split('/')[1]}/trading-data/` : '';
-  const DATA_URL = (GH || 'data/') + '{SYMBOL}/forecast.json';  // one folder per coin
+  // Signed in to FUMO cloud (the session FUMO keeps on this same site), forecasts come from Supabase; otherwise from local data/.
+  const SB_URL = 'https://shodagzqvfueenvrjati.supabase.co', SB_KEY = 'sb_publishable_dUfMqtXP23Wx3dZYIuggoA__GBwVRI-', SB_SESSION = 'fumo.cloud.session';
+  const DATA_URL = 'data/{SYMBOL}/forecast.json';  // one folder per coin, for local runs
+  const session = () => { try { return JSON.parse(localStorage.getItem(SB_SESSION) || 'null'); } catch (e) { return null; } };
+  async function cloudToken() {
+    const s = session();
+    if (!s) return '';
+    if (Date.now() < s.expires - 6e4) return s.access;
+    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, { method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: s.refresh }) });
+    if (!r.ok) throw new Error('your FUMO cloud sign-in expired; open FUMO and sign in again');
+    const j = await r.json();
+    try { localStorage.setItem(SB_SESSION, JSON.stringify({ ...s, access: j.access_token, refresh: j.refresh_token, expires: Date.now() + (j.expires_in || 3600) * 1000 })); } catch (e) {}
+    return j.access_token;
+  }
+  async function fetchForecast(sym) {
+    const token = await cloudToken();
+    if (!token) {
+      const r = await fetch(DATA_URL.replace('{SYMBOL}', sym) + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status === 404 ? `the job has not produced a ${sym.slice(0, -4)} forecast yet (sign in to FUMO cloud in FUMO's Settings)` : 'HTTP ' + r.status);
+      return r.json();
+    }
+    const r = await fetch(`${SB_URL}/rest/v1/fumo_trading?symbol=eq.${encodeURIComponent(sym)}&select=data`, { cache: 'no-store', headers: { apikey: SB_KEY, Authorization: `Bearer ${token}` } });
+    if (!r.ok) throw new Error(`FUMO cloud answered ${r.status}`);
+    const row = (await r.json())[0];
+    if (!row) throw new Error(`the job has not produced a ${sym.slice(0, -4)} forecast yet`);
+    return row.data;
+  }
   const REFRESH_MS = 5 * 60 * 1000, STALE_S = 90 * 60;
   const $ = id => document.getElementById(id);
   const css = n => getComputedStyle(document.body).getPropertyValue(n).trim();
@@ -1124,9 +1147,7 @@ html[data-skin="fumo"] .hdr-kick { display: block; color: var(--muted); font-siz
         d = demo.schema ? (demo.symbol === want ? demo : null) : demo[want];
         if (!d) throw new Error(`the job has not produced a ${want.slice(0, -4)} forecast yet`);
       } else {
-        const r = await fetch(DATA_URL.replace('{SYMBOL}', want) + '?t=' + Date.now(), { cache: 'no-store' });
-        if (!r.ok) throw new Error(r.status === 404 ? `the job has not produced a ${want.slice(0, -4)} forecast yet` : 'HTTP ' + r.status);
-        d = await r.json();
+        d = await fetchForecast(want);
       }
       if (d.schema !== 'fumo.kronos.v1') throw new Error('unexpected schema ' + d.schema);
       if (want === coin) show_(d);

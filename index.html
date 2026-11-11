@@ -534,7 +534,7 @@ html::-webkit-scrollbar, .sidebar::-webkit-scrollbar { display: none; }
       </div>
     </header>
     <div id="page"></div>
-    <footer class="footer"><span>FUMO · V0.11</span><span>Private · Sync and backups in Settings</span></footer>
+    <footer class="footer"><span>FUMO · V0.12</span><span>Private · Sync and backups in Settings</span></footer>
   </main>
 </div>
 <div class="modalback" id="modalback">
@@ -1210,7 +1210,7 @@ function renderInbox() {
     + `<section class="panel">${captureBox('Write it down and move on…')}<div class="mt">${inboxRows()}</div></section>`;
 }
 function renderSettings() {
-  return head('Personal / Control', 'Make it yours.', state.sync.repo ? 'Your records sync across your devices through your private GitHub repository.' : 'Everything lives in this browser. Turn on sync or back up regularly — clearing browser data erases it.')
+  return head('Personal / Control', 'Make it yours.', sbSession() ? 'Your records sync across your devices through FUMO cloud.' : 'Everything lives in this browser. Turn on sync or back up regularly — clearing browser data erases it.')
     + `<div class="grid cols2">
     ${syncPanel()}
     ${panel('Profile', 'Used in your greeting', `<div class="fields">${field('profileNameInput', 'Your name', state.profile.name, 'text', 'maxlength="40" autocomplete="given-name"')}</div><div class="mt">${btn('Save name', 'saveProfile', { cls: 'primary' })}</div>`)}
@@ -1291,25 +1291,35 @@ function editionHttpError(status, repo) {
   if (status === 404) return `Couldn’t find the edition in ${repo}. Check the repository name, that your key has access to it, and that the workflow has run once.`;
   return `GitHub answered ${status}. Try again in a few minutes.`;
 }
+const editionOn = () => !!(state.editionPrefs.feedUrl || sbSession());
 async function refreshEdition(force) {
-  const url = state.editionPrefs.feedUrl;
-  if (!url || editionLoading) return;
+  const cloud = !!sbSession();
+  if (!editionOn() || editionLoading) return;
   if (!force && editionCache?.data && Date.now() - editionCache.fetchedAt < 15 * 6e4) return;
   if (!force && Date.now() - editionLastTry < 5 * 6e4) return;
   editionLoading = true; editionLastTry = Date.now();
   if (page === 'edition' && !modal) render();
   try {
-    const req = editionRequest();
-    if (req.repo && !getEditionKey()) throw Error('Add your access key in edition settings.');
-    const res = await fetch(req.url, { cache: 'no-store', headers: req.headers });
-    if (!res.ok) throw Error(editionHttpError(res.status, req.repo));
-    const data = normalizeEdition(await res.json());
+    let raw;
+    if (cloud) {
+      const res = await sb('/rest/v1/fumo_edition?id=eq.current&select=data');
+      if (!res.ok) throw Error(`FUMO cloud answered ${res.status}. Try signing in again in Settings.`);
+      raw = (await res.json())[0]?.data;
+      if (!raw) { requestFreshEdition(null, true); throw Error('No edition yet. The first one is being collected and arrives within a minute or two.'); }
+    } else {
+      const req = editionRequest();
+      if (req.repo && !getEditionKey()) throw Error('Add your access key in edition settings.');
+      const res = await fetch(req.url, { cache: 'no-store', headers: req.headers });
+      if (!res.ok) throw Error(editionHttpError(res.status, req.repo));
+      raw = await res.json();
+    }
+    const data = normalizeEdition(raw);
     editionCache = { fetchedAt: Date.now(), data, error: '' };
     try { localStorage.setItem(EDITION_KEY, JSON.stringify({ fetchedAt: editionCache.fetchedAt, data })); } catch (e) {}
     if (editionCollecting && Date.parse(data.generated) > editionCollecting - 6e4) editionCollecting = 0;
     requestFreshEdition(data, force);
   } catch (e) {
-    const msg = /fetch|network|load failed/i.test(e.message) ? 'Couldn’t reach your headline service. You may be offline, or the address may be wrong.' : e.message;
+    const msg = /fetch|network|load failed/i.test(e.message) ? `Couldn’t reach ${cloud ? 'FUMO cloud' : 'your headline service'}. You may be offline${cloud ? '' : ', or the address may be wrong'}.` : e.message;
     editionCache = { fetchedAt: editionCache?.fetchedAt || 0, data: editionCache?.data || null, error: msg };
   }
   editionLoading = false;
@@ -1321,6 +1331,7 @@ async function refreshEdition(force) {
    actually read and the current one is getting old. Needs the key to have Actions: Read and write. */
 const DISPATCH_AT = 'fumo.edition.dispatched', DISPATCH_DENIED = 'fumo.edition.dispatchDenied';
 async function requestFreshEdition(data, force) {
+  if (sbSession()) return cloudCollect(data, force);
   const repo = editionRepo(), age = Date.now() - Date.parse(data.generated);
   if (!repo || age < (force ? 10 : 40) * 6e4 || editionCollecting) return;
   const last = Number(local.get(DISPATCH_AT)) || 0, denied = Number(local.get(DISPATCH_DENIED)) || 0;
@@ -1338,6 +1349,22 @@ async function requestFreshEdition(data, force) {
     /* A run takes about a minute and a half; look for the new edition, then stop looking after five minutes. */
     for (const wait of [100, 150, 220, 300]) setTimeout(() => { if (editionCollecting && Date.now() - editionCollecting < 5.5 * 6e4) refreshEdition(true); else if (editionCollecting) { editionCollecting = 0; if (page === 'edition' && !modal) render(); } }, wait * 1000);
   } catch (e) { /* offline: the next read tries again */ }
+}
+
+/* FUMO cloud collects every 30 minutes; reading an edition older than 40 minutes (10 when you press Refresh) asks for a new one. */
+async function cloudCollect(data, force) {
+  const age = data ? Date.now() - Date.parse(data.generated) : Infinity;
+  if (age < (force ? 10 : 40) * 6e4 || editionCollecting || Date.now() - (Number(local.get(DISPATCH_AT)) || 0) < 3 * 6e4) return;
+  local.set(DISPATCH_AT, String(Date.now()));
+  editionCollecting = Date.now();
+  if (page === 'edition' && !modal) render();
+  try {
+    const res = await sb('/functions/v1/edition', { method: 'POST', body: '{}' });
+    const j = await res.json().catch(() => ({}));
+    editionCollecting = 0;
+    if (res.ok && (j.saved || j.fresh)) { editionLastTry = 0; refreshEdition(true); return; }
+  } catch (e) { editionCollecting = 0; /* offline: the next read tries again */ }
+  if (page === 'edition' && !modal) render();
 }
 
 /* ---------- Ranking ---------- */
@@ -1421,10 +1448,11 @@ function editionNotice(ed) {
   return '';
 }
 function editionSetup() {
-  if (state.editionPrefs.feedUrl) {
+  if (editionOn()) {
     const err = editionCache?.error;
     return `<div class="panel ${err ? 'crash' : ''}"><h2>${editionLoading ? 'Fetching your edition…' : err ? 'Couldn’t load your edition' : 'Waiting for the first edition'}</h2><p class="muted mt-s">${err ? esc(err) : 'Your headline service is connected. The first edition appears once its workflow has run.'}</p><div class="actions mt">${btn('Try again', 'refreshEdition', { cls: 'primary', ic: 'reset' })}${btn('Edition settings', 'editionSettings', { ic: 'settings' })}</div></div>`;
   }
+  if (!state.editionPrefs.feedUrl) return `<div class="panel setup"><p class="kicker">Set up live headlines</p><h2>Sign in to FUMO cloud</h2><p class="muted mt-s">Your edition is collected every 30 minutes in FUMO cloud. Sign in under Settings and it appears here on every device.</p><div class="actions mt">${btn('Go to Settings', 'navigate', { cls: 'primary', id: 'settings', ic: 'settings' })}${btn(editionPreview ? 'Hide examples' : 'Preview with example stories', 'previewEdition', { ic: 'edition' })}</div></div>`;
   return `<div class="panel setup"><p class="kicker">Set up live headlines</p><h2>Three steps, about two minutes</h2><ol class="steps"><li>Your headline service runs in your private GitHub repository <strong>fumo-edition</strong>.</li><li>Create a read-only access key for it (the service README shows each click).</li><li>Paste <code>your-name/fumo-edition</code> and the key into edition settings.</li></ol><p class="hint">The service folder’s README walks through each click.</p><div class="actions mt">${btn('Connect headline service', 'editionSettings', { cls: 'primary', ic: 'link' })}${btn(editionPreview ? 'Hide examples' : 'Preview with example stories', 'previewEdition', { ic: 'edition' })}</div></div>`;
 }
 function renderFront(ed) {
@@ -1768,9 +1796,9 @@ function editionSettingsForm() {
   const p = state.editionPrefs, desks = allDesks();
   const hasBlock = state.blocks.some(b => /daily edition/i.test(b.title));
   showModal('Edition settings', `<div class="fields">
-    ${field('edFeed', 'Headline service', editionRepo() || p.feedUrl, 'text', 'placeholder="your-name/fumo-edition" maxlength="500" autocomplete="off" spellcheck="false"')}
+    ${sbSession() ? '<p class="hint">Your edition comes from FUMO cloud, collected every 30 minutes.</p>' : `${field('edFeed', 'Headline service', editionRepo() || p.feedUrl, 'text', 'placeholder="your-name/fumo-edition" maxlength="500" autocomplete="off" spellcheck="false"')}
     ${field('edKey', 'Access key', '', 'password', `placeholder="${getEditionKey() ? 'Saved — leave empty to keep it' : 'github_pat_…'}" maxlength="300" autocomplete="off" spellcheck="false"`)}
-    <p class="hint">Your private repository as <code>name/repo</code>, plus your fine-grained key (the same one sync uses). The key stays on this device and is never synced or included in backups. A public <code>https://…/edition.json</code> address also works, without a key. Leave the service empty to disconnect.</p>
+    <p class="hint">Your private repository as <code>name/repo</code>, plus your fine-grained key (the same one sync uses). The key stays on this device and is never synced or included in backups. A public <code>https://…/edition.json</code> address also works, without a key. Leave the service empty to disconnect.</p>`}
     ${field('edAlerts', 'Topic alerts — comma-separated', p.alerts.join(', '), 'text', 'maxlength="600" placeholder="Porsche, Grand Seiko, voice AI"')}
     <p class="hint">Stories that mention these are pinned under “On your radar” at the top of the front page.</p>
     ${Number(local.get(DISPATCH_DENIED)) ? '<p class="hint">To get a fresh edition whenever you open it, give your key <em>Actions: Read and write</em> on the headline repository, then press Save.</p>' : ''}
@@ -1975,26 +2003,27 @@ function doAction(a, key, el) {
     case 'editionSettings': editionSettingsForm(); break;
     case 'editionSources': sourcesModal(); break;
     case 'saveEditionSettings': {
-      const raw = val('#edFeed'), repo = /\.json(\?|$)/i.test(raw) ? '' : parseRepo(raw), url = !raw ? '' : repo ? `github:${repo}` : toUrl(raw), key = val('#edKey');
+      const hasFeed = !!$('#edFeed'), raw = hasFeed ? val('#edFeed') : '', repo = /\.json(\?|$)/i.test(raw) ? '' : parseRepo(raw), url = !raw ? '' : repo ? `github:${repo}` : toUrl(raw), key = val('#edKey');
       if (raw && !repo && !url.startsWith('https://')) return toast('Enter your repository as name/repo, or an https:// address');
       if (repo && !key && !getEditionKey()) return toast('Paste your read-only access key too');
       if (key && !/^[\w-]{20,300}$/.test(key)) return toast('That doesn’t look like a GitHub access key');
-      const p = state.editionPrefs, changed = url !== p.feedUrl;
+      const p = state.editionPrefs, changed = hasFeed && url !== p.feedUrl;
       allDesks().forEach(d => { if ($('#edw-' + d.id)) p.weights[d.id] = int(val('#edw-' + d.id), deskWeight(d.id), 0, 3); });
       p.style = val('#edStyle') === 'porcelain' ? 'porcelain' : 'obsidian';
       p.images = val('#edImages') !== 'off';
       p.alerts = splitTerms(val('#edAlerts'));
       local.set(DISPATCH_DENIED, null); // saving retries on-demand editions, e.g. after adding Actions access to the key
-      p.feedUrl = url;
-      if (key) setEditionKey(key);
-      /* The key is shared with sync: only forget it when neither needs it. */
-      if (!url && !state.sync.repo) setEditionKey('');
+      if (hasFeed) {
+        p.feedUrl = url;
+        if (key) setEditionKey(key);
+        if (!url) setEditionKey('');
+      }
       if (changed) { editionCache = null; editionPreview = false; try { localStorage.removeItem(EDITION_KEY); } catch (e) {} }
       save(); closeModal(); render();
       if ((changed || key) && url) { editionLastTry = 0; toast('Connecting to your headline service…'); refreshEdition(true); }
       break;
     }
-    case 'refreshEdition': if (state.editionPrefs.feedUrl) refreshEdition(true); else editionSettingsForm(); break;
+    case 'refreshEdition': if (editionOn()) refreshEdition(true); else editionSettingsForm(); break;
     case 'previewEdition': editionPreview = !editionPreview; SAMPLE = null; render(); break;
     case 'addReadingBlock':
       if (!state.blocks.some(b => /daily edition/i.test(b.title))) state.blocks.push({ id: uid(), time: '08:45', phase: 0, title: 'Read The Daily Edition', detail: '15 minutes with the front page, then into deep work', duration: 15, done: false });
@@ -2125,20 +2154,28 @@ function doAction(a, key, el) {
       setTimeout(() => URL.revokeObjectURL(u), 1000); toast('Backup downloaded'); break;
     }
     case 'import': $('#importfile').click(); break;
-    case 'saveSync': {
-      const repo = parseRepo(val('#syncRepo')), key = val('#syncKey');
-      if (!repo) return toast('Enter your data repository as name/repo');
-      if (key && !/^[\w-]{20,300}$/.test(key)) return toast('That doesn’t look like a GitHub access key');
-      if (!key && !getEditionKey()) return toast('Paste your access key too');
-      if (key) setEditionKey(key);
-      if (repo !== state.sync.repo) { local.set(SYNC_BASE, null); local.set(SYNC_SHA, null); }
-      state.sync.repo = repo; syncError = ''; persist(); local.set(SYNC_DIRTY, '1');
-      render(); toast('Syncing…'); syncNow(); break;
+    case 'cloudSignIn': case 'cloudSignUp': {
+      const email = val('#cloudEmail'), password = $('#cloudPass')?.value || '';
+      if (!/^\S+@\S+\.\S+$/.test(email)) return toast('Enter your email');
+      if (password.length < 8) return toast('Use a password of at least 8 characters');
+      (async () => {
+        try {
+          if (a === 'cloudSignUp') {
+            const j = await sbAuth('signup', { email, password });
+            if (!j.access_token) { toast('Check your email and confirm, then sign in here.'); return; }
+            keepSession(j);
+          } else keepSession(await sbAuth('token?grant_type=password', { email, password }));
+          /* Keep the last-synced copy as the common base, so this device's edits merge in on the first cloud sync. */
+          local.set(SYNC_SHA, null); local.set(SYNC_DIRTY, '1'); syncError = '';
+          editionLastTry = 0; render(); toast('Signed in. Syncing…'); syncNow(); refreshEdition(true);
+        } catch (e) { toast(/fetch|network|load failed/i.test(e.message) ? 'Couldn’t reach FUMO cloud. Are you online?' : e.message); }
+      })();
+      break;
     }
+    case 'cloudSignOut':
+      if (!confirm('Sign out of FUMO cloud on this device? Your records stay here and in the cloud.')) break;
+      local.set(SB_SESSION, null); [SYNC_BASE, SYNC_SHA, SYNC_DIRTY].forEach(k => local.set(k, null)); syncError = ''; syncLast = 0; render(); toast('Signed out on this device'); break;
     case 'syncNow': syncError = ''; render(); syncNow(); break;
-    case 'syncOff':
-      if (!confirm('Turn off sync on this device? Your records stay here and in your repository.')) break;
-      state.sync.repo = ''; [SYNC_BASE, SYNC_SHA, SYNC_DIRTY].forEach(k => local.set(k, null)); syncError = ''; persist(); render(); toast('Sync is off on this device'); break;
     case 'factoryReset': if (confirm('Erase all FUMO data in this browser? This cannot be undone.')) { state = normalize(seed()); [SYNC_BASE, SYNC_SHA, SYNC_DIRTY].forEach(k => local.set(k, null)); save(); go('command'); toast('FUMO reset. Sync is off on this device.'); } break;
   }
 }
@@ -2223,7 +2260,7 @@ function tick() {
   if (m !== lastMinute) {
     $('#clock').textContent = new Date().toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
     if (lastMinute !== -1 && m % 5 === 0 && page === 'command' && !modal) dirty = true;
-    if (state.editionPrefs.feedUrl && document.visibilityState !== 'hidden') refreshEdition(false);
+    if (editionOn() && document.visibilityState !== 'hidden') refreshEdition(false);
     if (m % 2 === 0 && syncOn() && document.visibilityState !== 'hidden') syncNow();
     lastMinute = m;
   }
@@ -2231,18 +2268,43 @@ function tick() {
 }
 
 
-/* ---------- Sync: your records travel between devices through a private GitHub repository ---------- */
-/* The key and the last-synced copy stay on this device; only the records themselves are shared. */
-const SYNC_FILE = 'fumo-data.json', SYNC_BASE = 'fumo.sync.base', SYNC_SHA = 'fumo.sync.sha', SYNC_DIRTY = 'fumo.sync.dirty';
+/* ---------- FUMO cloud (Supabase): sign-in, The Daily Edition and sync ---------- */
+/* The publishable key is meant to be public; row-level security lets only FUMO's owner read or save anything.
+   The session and the last-synced copy stay on this device; only your records are shared. */
+const SB_URL = 'https://shodagzqvfueenvrjati.supabase.co', SB_KEY = 'sb_publishable_dUfMqtXP23Wx3dZYIuggoA__GBwVRI-';
+const SB_SESSION = 'fumo.cloud.session', SYNC_BASE = 'fumo.sync.base', SYNC_SHA = 'fumo.sync.version', SYNC_DIRTY = 'fumo.sync.dirty';
+const sbSession = () => { try { return JSON.parse(localStorage.getItem(SB_SESSION) || 'null'); } catch (e) { return null; } };
+const keepSession = j => local.set(SB_SESSION, JSON.stringify({ access: j.access_token, refresh: j.refresh_token, expires: Date.now() + (j.expires_in || 3600) * 1000, email: j.user?.email || sbSession()?.email || '' }));
+async function sbAuth(path, body) {
+  const res = await fetch(`${SB_URL}/auth/v1/${path}`, { method: 'POST', headers: { apikey: SB_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw Error(j.msg || j.error_description || j.message || `Sign-in failed (${res.status})`);
+  return j;
+}
+let sbRefreshing = null;
+async function sbToken() {
+  const s = sbSession();
+  if (!s) return '';
+  if (Date.now() < s.expires - 6e4) return s.access;
+  sbRefreshing = sbRefreshing || sbAuth('token?grant_type=refresh_token', { refresh_token: s.refresh }).then(keepSession).catch(e => {
+    if (!/fetch|network|load failed/i.test(e.message)) { local.set(SB_SESSION, null); syncError = 'You were signed out of FUMO cloud. Sign in again in Settings.'; }
+    throw e;
+  }).finally(() => { sbRefreshing = null; });
+  await sbRefreshing;
+  return sbSession()?.access || '';
+}
+async function sb(path, init = {}) {
+  const token = await sbToken();
+  if (!token) throw Error('Sign in to FUMO cloud in Settings.');
+  return fetch(`${SB_URL}${path}`, { ...init, cache: 'no-store', headers: { apikey: SB_KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers || {}) } });
+}
 const COLLECTIONS = ['blocks', 'projects', 'habits', 'inbox', 'workouts', 'sessions', 'waiting', 'renewals', 'reading', 'pages'];
 const local = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
 let syncBusy = false, syncAgain = false, syncTimer = null, syncLast = 0, syncError = '';
-const syncOn = () => !!(state.sync.repo && getEditionKey());
+const syncOn = () => !!sbSession();
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 /* The running timer's countdown changes every second; it is not an edit. */
 const snapshot = () => JSON.stringify({ ...state, timer: { ...state.timer, seconds: 0 } });
-const b64encode = text => { const bytes = new TextEncoder().encode(text); let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(bin); };
-const b64decode = b64 => new TextDecoder().decode(Uint8Array.from(atob(String(b64).replace(/\s/g, '')), c => c.charCodeAt(0)));
 
 /* Three-way merge. A record changed on only one side keeps that change, deletions included.
    A record changed on both sides keeps this device's version, and an edit always beats a deletion. */
@@ -2260,17 +2322,10 @@ function mergeStates(base, mine, theirs) {
   }
   return out;
 }
-function syncHttpError(status, writing) {
-  if (status === 401) return 'GitHub refused your access key — it may have expired. Paste a new one in Settings → Sync.';
-  if (status === 403) return writing ? 'Your key can read but not save. Give it Contents: Read and write on your data repository.' : 'GitHub refused access (403). Check the key can use your data repository.';
-  if (status === 404) return `Couldn’t find ${state.sync.repo}. Check the name, and that your key includes this repository.`;
-  return `GitHub answered ${status}. FUMO will try again shortly.`;
-}
-function gh(method, body) {
-  return fetch(`https://api.github.com/repos/${state.sync.repo}/contents/${SYNC_FILE}`, {
-    method, cache: 'no-store', body: body && JSON.stringify(body),
-    headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', Authorization: `Bearer ${getEditionKey()}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }
-  });
+function syncHttpError(status) {
+  if (status === 401) return 'FUMO cloud refused your session. Sign out and in again in Settings.';
+  if (status === 403) return 'This account can’t use this FUMO cloud. Sign in with the account that set it up.';
+  return `FUMO cloud answered ${status}. FUMO will try again shortly.`;
 }
 function scheduleSync(ms = 2500) { if (!syncOn()) return; clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, ms); }
 async function syncNow() {
@@ -2279,10 +2334,11 @@ async function syncNow() {
   syncBusy = true;
   const startedWith = JSON.stringify(state), startedSnap = snapshot();
   try {
-    const res = await gh('GET');
-    if (!res.ok && res.status !== 404) throw Error(syncHttpError(res.status, false));
+    const res = await sb('/rest/v1/fumo_state?id=eq.main&select=data,version');
+    if (!res.ok) throw Error(syncHttpError(res.status));
+    const row = (await res.json())[0];
     let theirs = null, sha = '';
-    if (res.ok) { const j = await res.json(); sha = j.sha; theirs = normalize(JSON.parse(b64decode(j.content))); }
+    if (row) { sha = String(row.version); theirs = normalize(row.data); }
     const baseRaw = local.get(SYNC_BASE), base = baseRaw ? JSON.parse(baseRaw) : null, mine = JSON.parse(startedWith);
     const dirty = local.get(SYNC_DIRTY) === '1';
     let next = mine, notice = '';
@@ -2297,14 +2353,15 @@ async function syncNow() {
     if (!theirs || (dirty && !same(next, theirs))) {
       const text = JSON.stringify(next);
       if (text.length > 900000) throw Error('Your FUMO data is too large to sync (over 900 KB). Export a backup and archive old records.');
-      const put = await gh('PUT', { message: `FUMO sync ${new Date().toISOString().slice(0, 16)}`, content: b64encode(text), ...(sha ? { sha } : {}) });
+      const put = await sb('/rest/v1/rpc/fumo_save_state', { method: 'POST', body: JSON.stringify({ expected: Number(sha) || 0, new_data: next }) });
+      const j = await put.json().catch(() => ({}));
       /* Another device saved between our read and our write: read again and merge. */
-      if (put.status === 409 || put.status === 422) { syncAgain = true; throw Error(''); }
-      if (!put.ok) throw Error(syncHttpError(put.status, true));
-      sha = (await put.json()).content.sha;
+      if (!put.ok && (j.code === '40001' || /conflict/i.test(j.message || ''))) { syncAgain = true; throw Error(''); }
+      if (!put.ok) throw Error(j.code === '42501' ? syncHttpError(403) : syncHttpError(put.status));
+      sha = String(j);
     }
     local.set(SYNC_SHA, sha); local.set(SYNC_BASE, JSON.stringify(next));
-    /* Edits made while we were talking to GitHub are applied on top of the synced result. */
+    /* Edits made while we were talking to FUMO cloud are applied on top of the synced result. */
     const now = JSON.stringify(state);
     if (snapshot() !== startedSnap) { state = normalize(mergeStates(mine, JSON.parse(now), next)); syncAgain = true; local.set(SYNC_DIRTY, '1'); }
     else { state = next; local.set(SYNC_DIRTY, null); }
@@ -2320,18 +2377,18 @@ async function syncNow() {
   }
 }
 function syncStatusText() {
-  if (!state.sync.repo) return 'Off — your records stay in this browser.';
-  if (!getEditionKey()) return 'Waiting for your access key.';
+  const sess = sbSession();
+  if (!sess) return syncError || 'Signed out — your records stay in this browser.';
   if (syncError) return syncError;
-  return syncLast ? `On · last synced ${timeAgo(new Date(syncLast).toISOString())}` : 'On · connecting…';
+  return `${sess.email ? `Signed in as ${sess.email}` : 'Signed in'} · ${syncLast ? `last synced ${timeAgo(new Date(syncLast).toISOString())}` : 'connecting…'}`;
 }
 function syncPanel() {
-  const repo = state.sync.repo, owner = editionRepo().split('/')[0], guess = owner ? `${owner}/fumo-data` : '';
-  return panel('Sync across devices', esc(syncStatusText()), `<div class="fields">
-    ${field('syncRepo', 'Data repository', repo || guess, 'text', 'placeholder="your-name/fumo-data" maxlength="140" autocomplete="off" spellcheck="false"')}
-    ${field('syncKey', 'Access key', '', 'password', `placeholder="${getEditionKey() ? 'Saved — leave empty to keep it' : 'github_pat_…'}" maxlength="300" autocomplete="off" spellcheck="false"`)}
-    <p class="hint">A private GitHub repository holds your records so your phone and computer stay in step. The key is the same one The Daily Edition uses and needs <em>Contents: Read and write</em> on this repository. It stays on each device and is never synced or backed up.</p>
-  </div><div class="actions mt">${btn(repo ? 'Save' : 'Turn on sync', 'saveSync', { cls: 'primary' })}${repo ? btn('Sync now', 'syncNow', { ic: 'reset' }) + btn('Turn off', 'syncOff', { cls: 'quiet' }) : ''}</div>`);
+  if (sbSession()) return panel('FUMO cloud', esc(syncStatusText()), `<p class="muted">Your records, The Daily Edition and the trading desk come from FUMO cloud on every device you sign in on.</p><div class="actions mt">${btn('Sync now', 'syncNow', { cls: 'primary', ic: 'reset' })}${btn('Sign out', 'cloudSignOut', { cls: 'quiet' })}</div>`);
+  return panel('FUMO cloud', esc(syncStatusText()), `<div class="fields">
+    ${field('cloudEmail', 'Email', '', 'email', 'autocomplete="username" maxlength="200"')}
+    ${field('cloudPass', 'Password', '', 'password', 'autocomplete="current-password" minlength="8" maxlength="200"')}
+    <p class="hint">Sign in to sync across your devices and get The Daily Edition. <strong>First time only:</strong> press Create account, open the confirmation email (the page it opens may not load — the confirmation still works), then come back and sign in. Only that first account can see FUMO’s data.</p>
+  </div><div class="actions mt">${btn('Sign in', 'cloudSignIn', { cls: 'primary' })}${btn('Create account', 'cloudSignUp', { cls: 'quiet' })}</div>`);
 }
 
 /* ---------- Start ---------- */
@@ -2349,7 +2406,7 @@ document.addEventListener('visibilitychange', () => { if (syncOn()) syncNow(); }
 /* Installable app: keeps a copy of FUMO itself for offline use (not on file:// pages). */
 if ('serviceWorker' in navigator && window.isSecureContext && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 /* Small hook for testing and debugging from the console. */
-window.FUMO = { get state() { return state; }, set state(v) { state = normalize(v); render(); }, normalize, nextMove, toUrl, parseLinks, parseSkills, inLastDays, timerSync, doAction, go, render, PAGES, setPage: p => { page = p; }, normalizeEdition, refreshEdition, mergeStates, syncNow, b64encode, b64decode, save, frontPage, editionData, setEditionView: v => { editionView = v; }, get editionCache() { return editionCache; } };
+window.FUMO = { get state() { return state; }, set state(v) { state = normalize(v); render(); }, normalize, nextMove, toUrl, parseLinks, parseSkills, inLastDays, timerSync, doAction, go, render, PAGES, setPage: p => { page = p; }, normalizeEdition, refreshEdition, mergeStates, syncNow, save, sbSession, cloudCollect, frontPage, editionData, setEditionView: v => { editionView = v; }, get editionCache() { return editionCache; } };
 })();
 </script>
 </body>
